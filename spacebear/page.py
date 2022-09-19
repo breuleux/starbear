@@ -4,10 +4,12 @@ from hrepr import H
 
 
 class Page:
-    def __init__(self, ws, representer, selector=None):
-        self.ws = ws
+    def __init__(self, iq, oq, representer, selector=None, track_history=True):
+        self.iq = iq
+        self.oq = oq
         self.selector = selector
         self.representer = representer
+        self.track_history = track_history
         self.sent_resources = set()
         self.tasks = set()
 
@@ -17,7 +19,28 @@ class Page:
         return self.page_select(selector)
 
     def page_select(self, selector):
-        return type(self)(ws=self.ws, selector=selector, representer=self.representer)
+        return type(self)(
+            iq=self.iq,
+            oq=self.oq,
+            selector=selector,
+            representer=self.representer,
+            track_history=self.track_history,
+        )
+
+    def with_history(self, track_history=True):
+        if self.track_history == track_history:
+            return self
+        else:
+            return type(self)(
+                iq=self.iq,
+                oq=self.oq,
+                selector=self.selector,
+                representer=self.representer,
+                track_history=track_history,
+            )
+
+    def without_history(self):
+        return self.with_history(False)
 
     def _push(self, coro):
         task = aio.create_task(coro)
@@ -34,16 +57,19 @@ class Page:
         else:
             return self.representer.hrepr(x)
 
-    async def _put(self, element, method):
+    async def _put(self, element, method, history=None):
+        if history is None:
+            history = self.track_history
         sel = self.selector or "body"
-        return await self.ws.send_text(str(element(hx_swap_oob=f"{method}:{sel}")))
+        txt = str(element(hx_swap_oob=f"{method}:{sel}"))
+        return await self.oq.put((txt, history))
 
-    async def put(self, element, method):
+    async def put(self, element, method, history=None):
         for res in element.collect_resources():
             if res not in self.sent_resources:
                 self.sent_resources.add(res)
                 await self.page_select("head")._put(H.div(res), "beforeend")
-        return await self._put(element, method)
+        return await self._put(element, method, history=history)
 
     def print(self, element):
         element = H.div(self._to_element(element))
@@ -67,4 +93,4 @@ class Page:
         self._push(self.put(H.span(), "outerHTML"))
 
     async def recv(self):
-        return await self.ws.receive_json()
+        return await self.iq.get()
