@@ -3,8 +3,9 @@ import inspect
 import json
 from pathlib import Path
 
-from hrepr import HTML, H
-from starlette.responses import HTMLResponse, JSONResponse
+from hrepr import H, Tag
+from starlette.exceptions import HTTPException
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse
 from starlette.routing import Mount, Route, WebSocketRoute
 
 from .page import Page
@@ -27,8 +28,9 @@ class Cub:
         self.fn = mother.fn
         self.path = mother.path
         self.session = session
+        self.route = f"{self.path}/{self.session}"
         self.methods = {}
-        self.representer = Representer()
+        self.representer = Representer(self.route)
         self.iq = aio.Queue()
         self.oq = Queue2()
         self.history = []
@@ -44,9 +46,7 @@ class Cub:
     async def route_main(self, request):
         with open(here / "base-template.html") as tpf:
             self.reset = True
-            return HTMLResponse(
-                tpf.read().replace("{{{route}}}", f"{self.path}/{self.session}")
-            )
+            return HTMLResponse(tpf.read().replace("{{{route}}}", self.route))
 
     async def route_socket(self, ws):
         async def recv():
@@ -85,12 +85,15 @@ class Cub:
     async def route_method(self, request):
         method_id = request.path_params["method"]
         method = self.representer.registry.resolve(method_id)
-        args = json.loads((await request.body()).decode("utf8"))
-        result = method(*args)
+        try:
+            args = await request.json()
+        except json.JSONDecodeError:
+            args = [await request.body()]
+        result = method(*args, **request.query_params)
         if inspect.iscoroutine(result):
             result = await result
-        if isinstance(result, HTML):
-            return HTMLResponse(self.representer.hrepr(result))
+        if isinstance(result, Tag):
+            return HTMLResponse(str(self.representer.hrepr(result)))
         else:
             return JSONResponse(result)
 
@@ -119,6 +122,17 @@ class MotherBear:
     async def route_method(self, request):
         return await self._get(request).route_method(request)
 
+    async def route_file(self, request):
+        cub = self._get(request)
+        pth = cub.representer.registry.url_to_file.get(
+            request.path_params["path"], None
+        )
+        if pth is None:
+            raise HTTPException(
+                status_code=404, detail="File not found or not available."
+            )
+        return FileResponse(pth)
+
     def routes(self):
         return Mount(
             self.path,
@@ -130,6 +144,7 @@ class MotherBear:
                     self.route_method,
                     methods=["GET", "POST"],
                 ),
+                Route("/{session:int}/file/{path:path}", self.route_file),
                 WebSocketRoute("/{session:int}/socket", self.route_socket),
             ],
         )
