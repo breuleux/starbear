@@ -1,16 +1,25 @@
 import asyncio as aio
 
 from hrepr import H
+from hrepr.hgen import ResourceDeduplicator
 
 
 class Page:
-    def __init__(self, iq, oq, representer, selector=None, track_history=True):
+    def __init__(
+        self,
+        iq,
+        oq,
+        representer,
+        selector=None,
+        track_history=True,
+        sent_resources=None,
+    ):
         self.iq = iq
         self.oq = oq
         self.selector = selector
         self.representer = representer
         self.track_history = track_history
-        self.sent_resources = set()
+        self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
 
     def __getitem__(self, selector):
@@ -25,6 +34,7 @@ class Page:
             selector=selector,
             representer=self.representer,
             track_history=self.track_history,
+            sent_resources=self.sent_resources,
         )
 
     def with_history(self, track_history=True):
@@ -37,6 +47,7 @@ class Page:
                 selector=self.selector,
                 representer=self.representer,
                 track_history=track_history,
+                sent_resources=self.sent_resources,
             )
 
     def without_history(self):
@@ -57,19 +68,25 @@ class Page:
         else:
             return self.representer.hrepr(x)
 
-    async def _put(self, element, method, history=None):
+    async def _put(self, element, method, history=None, send_resources=False):
         if history is None:
             history = self.track_history
         sel = self.selector or "body"
-        txt = str(element(hx_swap_oob=f"{method}:{sel}"))
-        return await self.oq.put((txt, history))
+        element = element(hx_swap_oob=f"{method}:{sel}")
+        parts, extra, resources = self.representer.generate(
+            element, filter_resources=self.sent_resources if send_resources else None
+        )
+        if resources:
+            await self.page_select("head")._put(H.div(resources), "beforeend")
+        to_send = str(parts)
+        if extra:
+            to_send += str(
+                H.div(extra, style="display:none", hx_swap_oob=f"{method}:{sel}")
+            )
+        return await self.oq.put((to_send, history))
 
     async def put(self, element, method, history=None):
-        for res in element.collect_resources():
-            if res not in self.sent_resources:
-                self.sent_resources.add(res)
-                await self.page_select("head")._put(H.div(res), "beforeend")
-        return await self._put(element, method, history=history)
+        return await self._put(element, method, history=history, send_resources=True)
 
     def print(self, element):
         element = H.div(self._to_element(element))

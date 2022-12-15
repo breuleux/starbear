@@ -93,7 +93,7 @@ class Cub:
         if inspect.iscoroutine(result):
             result = await result
         if isinstance(result, Tag):
-            return HTMLResponse(str(self.representer.hrepr(result)))
+            return HTMLResponse(self.representer(result))
         else:
             return JSONResponse(result)
 

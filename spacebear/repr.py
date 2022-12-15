@@ -6,7 +6,7 @@ from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
 
-from hrepr import hjson, hrepr, standard_html
+from hrepr import embed, hrepr, standard_html
 
 
 class CallbackRegistry:
@@ -65,47 +65,42 @@ class CallbackRegistry:
         return m
 
 
-class AttributeTranslator:
-    def __init__(self, route, registry):
-        self.route = route
-        self.registry = registry
-
-    def translate_hx_get(self, _, v):
-        if isinstance(v, str):
-            return v
-        else:
-            method_id = self.registry.register(v)
-            return {"hx-get": f"{self.route}/method/{method_id}"}
-
-    def default(self, k, v, dflt):
-        if isinstance(v, Path):
-            new_v = self.registry.register_file(v)
-            return {k: f"{self.route}/file/{new_v}"}
-        else:
-            return dflt(k, v)
-
-    def get(self, k, dflt):
-        k = k.replace("-", "_")
-        return getattr(self, f"translate_{k}", lambda k, v: self.default(k, v, dflt))
-
-
 class Representer:
     def __init__(self, route):
         registry = self.registry = CallbackRegistry(weak=False)
+        self.route = route
+        self.hrepr = hrepr
 
-        @hjson.dump.variant
-        def _reg_hjson(self, fn: Union[MethodType, FunctionType]):
+        @embed.js_embed.variant
+        def js_embed(self, fn: Union[MethodType, FunctionType]):
             method_id = registry.register(fn)
             return f"$$BEAR({method_id})"
 
-        def reg_hjson(obj):
-            return str(_reg_hjson(obj))
+        @js_embed.register
+        def js_embed(self, pth: Path):
+            new_pth = registry.register_file(pth)
+            return f"'{route}/file/{new_pth}'"
 
-        self.hrepr = hrepr.configure(
-            backend=standard_html.copy(
-                initial_state={
-                    "hjson": reg_hjson,
-                    "attribute_translators": AttributeTranslator(route, registry),
-                }
-            )
+        @embed.attr_embed.variant
+        def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
+            method_id = registry.register(fn)
+            if attr.startswith("hx_"):
+                return f"{route}/method/{method_id}"
+            else:
+                return f"$$BEAR({method_id})"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, pth: Path):
+            new_pth = registry.register_file(pth)
+            return f"{route}/file/{new_pth}"
+
+        self.printer = standard_html.fork(
+            js_embed=js_embed,
+            attr_embed=attr_embed,
         )
+
+    def generate(self, *args, **kwargs):
+        return self.printer.generate(*args, **kwargs)
+
+    def __call__(self, node):
+        return self.hrepr(node)
