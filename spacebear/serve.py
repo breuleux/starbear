@@ -3,9 +3,14 @@ import inspect
 import json
 from pathlib import Path
 
-from hrepr import H, Tag
+from hrepr import Tag
 from starlette.exceptions import HTTPException
-from starlette.responses import FileResponse, HTMLResponse, JSONResponse
+from starlette.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+)
 from starlette.routing import Mount, Route, WebSocketRoute
 
 from .page import Page
@@ -102,6 +107,7 @@ class MotherBear:
     def __init__(self, fn, path):
         self.fn = fn
         self.path = path
+        self.session_index = 0
         self.cubs = {}
 
     def _get(self, request):
@@ -111,7 +117,9 @@ class MotherBear:
         return self.cubs[sess]
 
     async def route_dispatch(self, request):
-        return HTMLResponse(str(H.span("nothing to see here")))
+        self.session_index += 1
+        session = self.session_index
+        return RedirectResponse(url=f"{self.path}/{session}")
 
     async def route_main(self, request):
         return await self._get(request).route_main(request)
@@ -124,9 +132,7 @@ class MotherBear:
 
     async def route_file(self, request):
         cub = self._get(request)
-        pth = cub.representer.registry.url_to_file.get(
-            request.path_params["path"], None
-        )
+        pth = cub.representer.registry.get_file_from_url(request.path_params["path"])
         if pth is None:
             raise HTTPException(
                 status_code=404, detail="File not found or not available."

@@ -20,20 +20,37 @@ class CallbackRegistry:
         self.file_to_url = {}
         self.url_to_file = {}
 
-    def register_file(self, pth):
-        pth = pth.absolute()
-        if pth not in self.file_to_url:
-            anchor = pth.parent
+    def find_anchor(self, filename):
+        filename = filename.absolute()
+        anchor = filename
+        while anchor != Path("/"):
+            anchor = anchor.parent
+            if anchor in self.file_to_url:
+                return (anchor, self.file_to_url[anchor])
+        else:
+            anchor = filename.parent
             while not (anchor / "spacebear-anchor").exists():
                 anchor = anchor.parent
                 if anchor == Path("/"):
-                    anchor = pth.parent
+                    anchor = filename.parent
                     break
-            dirname = md5(str(anchor).encode("utf8")).hexdigest()
-            url = str(dirname / pth.relative_to(anchor))
-            self.file_to_url[pth] = url
-            self.url_to_file[url] = pth
-        return self.file_to_url[pth]
+            url = md5(str(anchor).encode("utf8")).hexdigest()
+            self.file_to_url[anchor] = url
+            self.url_to_file[url] = anchor
+            return (anchor, url)
+
+    def register_file(self, filename):
+        filename = filename.absolute()
+        anchor, base_url = self.find_anchor(filename)
+        url = str(base_url / filename.relative_to(anchor))
+        return url
+
+    def get_file_from_url(self, url):
+        url = orig = Path(url)
+        while url != url.parent and str(url) not in self.url_to_file:
+            url = url.parent
+        anchor = self.url_to_file.get(str(url), None)
+        return anchor and str(anchor / orig.relative_to(url))
 
     def register(self, method):
         currid = next(self.id)
