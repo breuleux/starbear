@@ -137,13 +137,18 @@ class MotherBear:
             raise HTTPException(
                 status_code=404, detail="File not found or not available."
             )
-        return FileResponse(pth)
+        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
+
+    async def route_static(self, request):
+        pth = here / request.path_params["path"]
+        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
 
     def routes(self):
         return Mount(
             self.path,
             routes=[
                 Route("/", self.route_dispatch),
+                Route("/{session:int}/static/{path:path}", self.route_static),
                 Route("/{session:int}/", self.route_main),
                 Route(
                     "/{session:int}/method/{method:int}",
