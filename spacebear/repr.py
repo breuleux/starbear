@@ -91,7 +91,7 @@ class Representer:
         @embed.js_embed.variant
         def js_embed(self, fn: Union[MethodType, FunctionType]):
             method_id = registry.register(fn)
-            return f"$$BEAR({method_id})"
+            return f"$$BEAR_FUNC({method_id})"
 
         @js_embed.register
         def js_embed(self, pth: Path):

@@ -69,6 +69,13 @@
                     execNow();
                 }
             }
+
+            function $$BEAR_CB(selector, method, args, callback) {
+                let element = document.querySelector(selector);
+                let object = element && element.__constructed;
+                let result = object[method](...args);
+                callback(result);
+            }
         </script>
     </head>
     <body hx-ws="connect:{{{route}}}/socket">

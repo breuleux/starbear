@@ -1,7 +1,8 @@
 import asyncio as aio
 
-from hrepr import H
+from hrepr import H, Tag
 from hrepr.hgen import ResourceDeduplicator
+from hrepr.resource import Resource
 
 
 class Page:
@@ -21,8 +22,14 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
+        self.call = Caller(self)
 
     def __getitem__(self, selector):
+        if isinstance(selector, Tag):
+            tid = selector.attributes.get("id", None)
+            if not tid:
+                raise Exception("Cannot locate element because it has no id.")
+            selector = f"#{tid}"
         if self.selector is not None:
             selector = f"{self.selector} {selector}"
         return self.page_select(selector)
@@ -111,3 +118,36 @@ class Page:
 
     async def recv(self):
         return await self.iq.get()
+
+
+call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {callback});"
+
+
+class Caller:
+    def __init__(self, element):
+        self.__element = element
+        self.__selector = element.selector
+
+    def __getattr__(self, attr):
+        def call(*args):
+            future = aio.Future()
+
+            def callback(result):
+                future.set_result(result)
+
+            self.__element.page_select("body").print(
+                H.script(
+                    call_template.format(
+                        method=attr,
+                        selector=self.__selector,
+                        # TODO: this resource should only be callable once,
+                        # and the callback endpoint should be reclaimed after
+                        # that. In its current state this is clearly a memory leak.
+                        callback=Resource(callback),
+                        args=Resource(args),
+                    )
+                )
+            )
+            return future
+
+        return call
