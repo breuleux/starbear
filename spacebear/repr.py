@@ -17,40 +17,6 @@ class CallbackRegistry:
         self.weak_map = {}
         self.strong_map = {}
         self.strong_ids = deque()
-        self.file_to_url = {}
-        self.url_to_file = {}
-
-    def find_anchor(self, filename):
-        filename = filename.absolute()
-        anchor = filename
-        while anchor != Path("/"):
-            anchor = anchor.parent
-            if anchor in self.file_to_url:
-                return (anchor, self.file_to_url[anchor])
-        else:
-            anchor = filename.parent
-            while not (anchor / "spacebear-anchor").exists():
-                anchor = anchor.parent
-                if anchor == Path("/"):
-                    anchor = filename.parent
-                    break
-            url = md5(str(anchor).encode("utf8")).hexdigest()
-            self.file_to_url[anchor] = url
-            self.url_to_file[url] = anchor
-            return (anchor, url)
-
-    def register_file(self, filename):
-        filename = filename.absolute()
-        anchor, base_url = self.find_anchor(filename)
-        url = str(base_url / filename.relative_to(anchor))
-        return url
-
-    def get_file_from_url(self, url):
-        url = orig = Path(url)
-        while url != url.parent and str(url) not in self.url_to_file:
-            url = url.parent
-        anchor = self.url_to_file.get(str(url), None)
-        return anchor and str(anchor / orig.relative_to(url))
 
     def register(self, method):
         currid = next(self.id)
@@ -82,25 +48,64 @@ class CallbackRegistry:
         return m
 
 
+class FileRegistry:
+    def __init__(self):
+        self.file_to_url = {}
+        self.url_to_file = {}
+
+    def find_anchor(self, filename):
+        filename = filename.absolute()
+        anchor = filename
+        while anchor != Path("/"):
+            anchor = anchor.parent
+            if anchor in self.file_to_url:
+                return (anchor, self.file_to_url[anchor])
+        else:
+            anchor = filename.parent
+            while not (anchor / "spacebear-anchor").exists():
+                anchor = anchor.parent
+                if anchor == Path("/"):
+                    anchor = filename.parent
+                    break
+            url = md5(str(anchor).encode("utf8")).hexdigest()
+            self.file_to_url[anchor] = url
+            self.url_to_file[url] = anchor
+            return (anchor, url)
+
+    def register(self, filename):
+        filename = filename.absolute()
+        anchor, base_url = self.find_anchor(filename)
+        url = str(base_url / filename.relative_to(anchor))
+        return url
+
+    def get_file_from_url(self, url):
+        url = orig = Path(url)
+        while url != url.parent and str(url) not in self.url_to_file:
+            url = url.parent
+        anchor = self.url_to_file.get(str(url), None)
+        return anchor and str(anchor / orig.relative_to(url))
+
+
 class Representer:
     def __init__(self, route):
-        registry = self.registry = CallbackRegistry(weak=False)
+        callback_registry = self.callback_registry = CallbackRegistry(weak=False)
+        file_registry = self.file_registry = FileRegistry()
         self.route = route
         self.hrepr = hrepr
 
         @embed.js_embed.variant
         def js_embed(self, fn: Union[MethodType, FunctionType]):
-            method_id = registry.register(fn)
+            method_id = callback_registry.register(fn)
             return f"$$BEAR_FUNC({method_id})"
 
         @js_embed.register
         def js_embed(self, pth: Path):
-            new_pth = registry.register_file(pth)
+            new_pth = file_registry.register(pth)
             return f"'{route}/file/{new_pth}'"
 
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
-            method_id = registry.register(fn)
+            method_id = callback_registry.register(fn)
             if attr.startswith("hx_"):
                 return f"{route}/method/{method_id}"
             else:
@@ -108,7 +113,7 @@ class Representer:
 
         @attr_embed.register
         def attr_embed(self, attr: str, pth: Path):
-            new_pth = registry.register_file(pth)
+            new_pth = file_registry.register(pth)
             return f"{route}/file/{new_pth}"
 
         self.printer = standard_html.fork(

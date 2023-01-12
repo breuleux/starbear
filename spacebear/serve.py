@@ -89,7 +89,7 @@ class Cub:
 
     async def route_method(self, request):
         method_id = request.path_params["method"]
-        method = self.representer.registry.resolve(method_id)
+        method = self.representer.callback_registry.resolve(method_id)
         try:
             args = await request.json()
         except json.JSONDecodeError:
@@ -132,7 +132,7 @@ class MotherBear:
 
     async def route_file(self, request):
         cub = self._get(request)
-        pth = cub.representer.registry.get_file_from_url(request.path_params["path"])
+        pth = cub.representer.file_registry.get_file_from_url(request.path_params["path"])
         if pth is None:
             raise HTTPException(
                 status_code=404, detail="File not found or not available."
