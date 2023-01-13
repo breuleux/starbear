@@ -22,7 +22,8 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
-        self.call = Caller(self)
+        self.do = Caller(self, return_result=False)
+        self.call = Caller(self, return_result=True)
 
     def __getitem__(self, selector):
         if isinstance(selector, Tag):
@@ -121,23 +122,25 @@ class Page:
 
 
 class Caller:
-    def __init__(self, element):
+    def __init__(self, element, return_result):
         self.__element = element
         self.__selector = element.selector
+        self.__return_result = return_result
 
     def __getattr__(self, attr):
         def call(*args):
-            call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {future});"
+            call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {future}, {return_result});"
             future = aio.Future()
-            self.__element.page_select("body").print(
+            self.__element.page_select("body").without_history().print(
                 H.script(
                     call_template.format(
                         method=attr,
                         selector=self.__selector,
                         future=Resource(future),
                         args=Resource(args),
+                        return_result=int(self.__return_result),
                     )
-                )
+                ),
             )
             return future
 

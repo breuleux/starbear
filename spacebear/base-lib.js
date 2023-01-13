@@ -52,11 +52,20 @@ function $$BEAR(id, ...args) {
 }
 
 
-async function $$BEAR_CB(selector, method, args, promise) {
-    let element = document.querySelector(selector);
-    let object = element && element.__constructed;
-    let result = object[method](...args);
-    await promise.resolve(result);
+async function $$BEAR_CB(selector, method, args, promise, return_result) {
+    let object = window;
+    if (selector) {
+        const element = document.querySelector(selector);
+        object = (await (element.__object));
+    }
+    try {
+        let result = await object[method](...args);
+        await promise.resolve(return_result ? result : null);
+    }
+    catch (exc) {
+        await promise.reject(exc);
+        throw exc;
+    }
 }
 
 
@@ -65,16 +74,33 @@ class $$BEAR_PROMISE {
         this.reqid = reqid;
     }
 
-    async resolve(value) {
+    async post(data) {
         return await fetch(`${BEAR_ROUTE}/post`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
+            body: JSON.stringify(data)
+        })
+    }
+
+    async resolve(value) {
+        try {
+            return await this.post({
                 reqid: this.reqid,
                 value: value,
             })
+        }
+        catch (exc) {
+            return await self.reject(exc);
+        }
+    }
+
+    async reject(exc) {
+        let message = `${exc.type}: ${exc.message}`;
+        return await this.post({
+            reqid: this.reqid,
+            error: message,
         })
     }
 }

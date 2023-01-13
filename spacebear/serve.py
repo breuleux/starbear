@@ -104,10 +104,16 @@ class Cub:
 
     async def route_post(self, request):
         data = await request.json()
-        self.representer.future_registry.resolve(
-            fid=data["reqid"],
-            value=data["value"],
-        )
+        if "value" in data:
+            self.representer.future_registry.resolve(
+                fid=data["reqid"],
+                value=data["value"],
+            )
+        else:
+            self.representer.future_registry.reject(
+                fid=data["reqid"],
+                error=data["error"],
+            )
         return JSONResponse({"status": "ok"})
 
 

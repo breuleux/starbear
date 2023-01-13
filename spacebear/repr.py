@@ -98,7 +98,15 @@ class FutureRegistry:
         return fid
 
     def resolve(self, fid, value):
+        if fid not in self.futures:
+            return
         self.futures[fid].set_result(value)
+        del self.futures[fid]
+
+    def reject(self, fid, error):
+        if fid not in self.futures:
+            return
+        self.futures[fid].set_exception(Exception(error))
         del self.futures[fid]
 
 
