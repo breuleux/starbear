@@ -1,4 +1,5 @@
 import weakref
+from asyncio import Future
 from collections import deque
 from hashlib import md5
 from itertools import count
@@ -86,10 +87,26 @@ class FileRegistry:
         return anchor and str(anchor / orig.relative_to(url))
 
 
+class FutureRegistry:
+    def __init__(self):
+        self.current_id = count()
+        self.futures = {}
+
+    def register(self, future):
+        fid = next(self.current_id)
+        self.futures[fid] = future
+        return fid
+
+    def resolve(self, fid, value):
+        self.futures[fid].set_result(value)
+        del self.futures[fid]
+
+
 class Representer:
     def __init__(self, route):
         callback_registry = self.callback_registry = CallbackRegistry(weak=False)
         file_registry = self.file_registry = FileRegistry()
+        future_registry = self.future_registry = FutureRegistry()
         self.route = route
         self.hrepr = hrepr
 
@@ -102,6 +119,11 @@ class Representer:
         def js_embed(self, pth: Path):
             new_pth = file_registry.register(pth)
             return f"'{route}/file/{new_pth}'"
+
+        @js_embed.register
+        def js_embed(self, future: Future):
+            fid = future_registry.register(future)
+            return f"(new $$BEAR_PROMISE({fid}))"
 
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):

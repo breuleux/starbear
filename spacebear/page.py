@@ -120,9 +120,6 @@ class Page:
         return await self.iq.get()
 
 
-call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {callback});"
-
-
 class Caller:
     def __init__(self, element):
         self.__element = element
@@ -130,20 +127,14 @@ class Caller:
 
     def __getattr__(self, attr):
         def call(*args):
+            call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {future});"
             future = aio.Future()
-
-            def callback(result):
-                future.set_result(result)
-
             self.__element.page_select("body").print(
                 H.script(
                     call_template.format(
                         method=attr,
                         selector=self.__selector,
-                        # TODO: this resource should only be callable once,
-                        # and the callback endpoint should be reclaimed after
-                        # that. In its current state this is clearly a memory leak.
-                        callback=Resource(callback),
+                        future=Resource(future),
                         args=Resource(args),
                     )
                 )

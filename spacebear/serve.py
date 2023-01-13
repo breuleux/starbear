@@ -102,6 +102,14 @@ class Cub:
         else:
             return JSONResponse(result)
 
+    async def route_post(self, request):
+        data = await request.json()
+        self.representer.future_registry.resolve(
+            fid=data["reqid"],
+            value=data["value"],
+        )
+        return JSONResponse({"status": "ok"})
+
 
 class MotherBear:
     def __init__(self, fn, path):
@@ -132,7 +140,9 @@ class MotherBear:
 
     async def route_file(self, request):
         cub = self._get(request)
-        pth = cub.representer.file_registry.get_file_from_url(request.path_params["path"])
+        pth = cub.representer.file_registry.get_file_from_url(
+            request.path_params["path"]
+        )
         if pth is None:
             raise HTTPException(
                 status_code=404, detail="File not found or not available."
@@ -142,6 +152,9 @@ class MotherBear:
     async def route_static(self, request):
         pth = here / request.path_params["path"]
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
+
+    async def route_post(self, request):
+        return await self._get(request).route_post(request)
 
     def routes(self):
         return Mount(
@@ -156,6 +169,7 @@ class MotherBear:
                     methods=["GET", "POST"],
                 ),
                 Route("/{session:int}/file/{path:path}", self.route_file),
+                Route("/{session:int}/post", self.route_post, methods=["POST"]),
                 WebSocketRoute("/{session:int}/socket", self.route_socket),
             ],
         )

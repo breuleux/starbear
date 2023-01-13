@@ -1,31 +1,16 @@
 
 function $$BEAR_FUNC(id) {
     return async (...args) => {
-        let _resolve = null;
-        let _reject = null;
-        const response = new Promise(
-            (resolve, reject) => {
-                _resolve = resolve;
-                _reject = reject;
-            }
-        );
-
-        const req = new XMLHttpRequest();
-        req.onreadystatechange = () => {
-            if (req.readyState === 4) {
-                if (req.status == 200) {
-                    console.log(req);
-                    _resolve(JSON.parse(req.responseText))
-                }
-            }
-        };
-        req.open("POST", `${BEAR_ROUTE}/method/${id}`, true);
-        req.setRequestHeader('Content-type', 'application/json; charset=UTF-8');
-        req.send(JSON.stringify(args));
-
-        return await response;
+        return await fetch(`${BEAR_ROUTE}/method/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(args),
+        })
     }
 }
+
 
 function $$BEAR(id, ...args) {
     const exec = $$BEAR_FUNC(id);
@@ -66,9 +51,30 @@ function $$BEAR(id, ...args) {
     }
 }
 
-function $$BEAR_CB(selector, method, args, callback) {
+
+async function $$BEAR_CB(selector, method, args, promise) {
     let element = document.querySelector(selector);
     let object = element && element.__constructed;
     let result = object[method](...args);
-    callback(result);
+    await promise.resolve(result);
+}
+
+
+class $$BEAR_PROMISE {
+    constructor(reqid) {
+        this.reqid = reqid;
+    }
+
+    async resolve(value) {
+        return await fetch(`${BEAR_ROUTE}/post`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reqid: this.reqid,
+                value: value,
+            })
+        })
+    }
 }
