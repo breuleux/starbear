@@ -1,7 +1,9 @@
 import asyncio as aio
+import base64
 import inspect
 import json
 from pathlib import Path
+from uuid import uuid4 as uuid
 
 from hrepr import Tag
 from starlette.exceptions import HTTPException
@@ -147,7 +149,6 @@ class MotherBear:
     def __init__(self, fn, path, session_timeout=60, hide_sessions=True):
         self.fn = fn
         self.path = path
-        self.session_index = 0
         self.session_timeout = session_timeout
         self.hide_sessions = hide_sessions
         self.cubs = {}
@@ -162,8 +163,7 @@ class MotherBear:
         return self.cubs[sess]
 
     async def route_dispatch(self, request):
-        self.session_index += 1
-        session = self.session_index
+        session = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
         if self.hide_sessions:
             return await self._get_for_session(session).route_main(request)
         else:
@@ -201,16 +201,16 @@ class MotherBear:
             self.path,
             routes=[
                 Route("/", self.route_dispatch),
-                Route("/{session:int}/static/{path:path}", self.route_static),
-                Route("/{session:int}/", self.route_main),
+                Route("/{session:str}/static/{path:path}", self.route_static),
+                Route("/{session:str}/", self.route_main),
                 Route(
-                    "/{session:int}/method/{method:int}",
+                    "/{session:str}/method/{method:int}",
                     self.route_method,
                     methods=["GET", "POST"],
                 ),
-                Route("/{session:int}/file/{path:path}", self.route_file),
-                Route("/{session:int}/post", self.route_post, methods=["POST"]),
-                WebSocketRoute("/{session:int}/socket", self.route_socket),
+                Route("/{session:str}/file/{path:path}", self.route_file),
+                Route("/{session:str}/post", self.route_post, methods=["POST"]),
+                WebSocketRoute("/{session:str}/socket", self.route_socket),
             ],
         )
 
