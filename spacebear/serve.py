@@ -12,6 +12,7 @@ from starlette.responses import (
     RedirectResponse,
 )
 from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
 from .repr import Representer
@@ -43,21 +44,44 @@ class Cub:
         self.ws = None
         self.page = Page(self.iq, self.oq, representer=self.representer)
         self.coro = aio.create_task(self.run())
+        self._sd_coro = None
+
+    def schedule_selfdestruct(self):
+        async def sd():
+            await aio.sleep(self.mother.session_timeout)
+            del self.mother.cubs[self.session]
+            self.coro.cancel()
+            print(f"Destroyed session: {self.session}")
+
+        if self.mother.session_timeout is not None:
+            self._sd_coro = aio.create_task(sd())
+
+    def unschedule_selfdestruct(self):
+        if self._sd_coro:
+            self._sd_coro.cancel()
+            self._sd_coro = None
 
     async def run(self):
         await self.fn(self.page)
         await self.page.sync()
 
     async def route_main(self, request):
+        self.unschedule_selfdestruct()
         with open(here / "base-template.html") as tpf:
             self.reset = True
             return HTMLResponse(tpf.read().replace("{{{route}}}", self.route))
 
     async def route_socket(self, ws):
+        self.unschedule_selfdestruct()
+
         async def recv():
             while True:
-                data = await ws.receive_json()
-                self.iq.put_nowait(data)
+                try:
+                    data = await ws.receive_json()
+                    self.iq.put_nowait(data)
+                except WebSocketDisconnect:
+                    break
+            print("recv stopped")
 
         async def send():
             while True:
@@ -70,6 +94,7 @@ class Cub:
                     # Put the unsent element back into the queue
                     self.oq.putleft((txt, in_history))
                     break
+            print("send stopped")
 
         if self.ws:
             try:
@@ -86,6 +111,7 @@ class Cub:
             self.reset = False
 
         await aio.wait([recv(), send()], return_when=aio.FIRST_COMPLETED)
+        self.schedule_selfdestruct()
 
     async def route_method(self, request):
         method_id = request.path_params["method"]
@@ -118,15 +144,17 @@ class Cub:
 
 
 class MotherBear:
-    def __init__(self, fn, path):
+    def __init__(self, fn, path, session_timeout=60):
         self.fn = fn
         self.path = path
         self.session_index = 0
+        self.session_timeout = session_timeout
         self.cubs = {}
 
     def _get(self, request):
         sess = request.path_params["session"]
         if sess not in self.cubs:
+            print(f"Creating session: {sess}")
             self.cubs[sess] = Cub(self, sess)
         return self.cubs[sess]
 
