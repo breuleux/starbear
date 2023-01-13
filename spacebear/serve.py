@@ -2,6 +2,7 @@ import asyncio as aio
 import base64
 import inspect
 import json
+from functools import wraps
 from pathlib import Path
 from uuid import uuid4 as uuid
 
@@ -145,6 +146,20 @@ class Cub:
         return JSONResponse({"status": "ok"})
 
 
+def forward_cub(fn):
+    @wraps(fn)
+    async def fwd(self, request):
+        session = request.path_params["session"]
+        cub = self._get(session)
+        if cub is None:
+            print(f"Trying to access missing session: {session}")
+            return JSONResponse({"missing": session}, status_code=404)
+        else:
+            return await fn(self, request, cub)
+
+    return fwd
+
+
 class MotherBear:
     def __init__(self, fn, path, session_timeout=60, hide_sessions=True):
         self.fn = fn
@@ -153,33 +168,36 @@ class MotherBear:
         self.hide_sessions = hide_sessions
         self.cubs = {}
 
-    def _get(self, request):
-        return self._get_for_session(request.path_params["session"])
-
-    def _get_for_session(self, sess):
+    def _get(self, sess, ensure=False):
         if sess not in self.cubs:
-            print(f"Creating session: {sess}")
-            self.cubs[sess] = Cub(self, sess)
+            if ensure:
+                print(f"Creating session: {sess}")
+                self.cubs[sess] = Cub(self, sess)
+            else:
+                return None
         return self.cubs[sess]
 
     async def route_dispatch(self, request):
         session = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
         if self.hide_sessions:
-            return await self._get_for_session(session).route_main(request)
+            return await self._get(session, ensure=True).route_main(request)
         else:
             return RedirectResponse(url=f"{self.path}/{session}")
 
     async def route_main(self, request):
-        return await self._get(request).route_main(request)
+        session = request.path_params["session"]
+        return await self._get(session, ensure=True).route_main(request)
 
-    async def route_socket(self, ws):
-        return await self._get(ws).route_socket(ws)
+    @forward_cub
+    async def route_socket(self, ws, cub):
+        return await cub.route_socket(ws)
 
-    async def route_method(self, request):
-        return await self._get(request).route_method(request)
+    @forward_cub
+    async def route_method(self, request, cub):
+        return await cub.route_method(request)
 
-    async def route_file(self, request):
-        cub = self._get(request)
+    @forward_cub
+    async def route_file(self, request, cub):
         pth = cub.representer.file_registry.get_file_from_url(
             request.path_params["path"]
         )
@@ -189,12 +207,13 @@ class MotherBear:
             )
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
 
+    @forward_cub
+    async def route_post(self, request, cub):
+        return await cub.route_post(request)
+
     async def route_static(self, request):
         pth = here / request.path_params["path"]
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
-
-    async def route_post(self, request):
-        return await self._get(request).route_post(request)
 
     def routes(self):
         return Mount(
