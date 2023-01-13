@@ -144,15 +144,18 @@ class Cub:
 
 
 class MotherBear:
-    def __init__(self, fn, path, session_timeout=60):
+    def __init__(self, fn, path, session_timeout=60, hide_sessions=True):
         self.fn = fn
         self.path = path
         self.session_index = 0
         self.session_timeout = session_timeout
+        self.hide_sessions = hide_sessions
         self.cubs = {}
 
     def _get(self, request):
-        sess = request.path_params["session"]
+        return self._get_for_session(request.path_params["session"])
+
+    def _get_for_session(self, sess):
         if sess not in self.cubs:
             print(f"Creating session: {sess}")
             self.cubs[sess] = Cub(self, sess)
@@ -161,7 +164,10 @@ class MotherBear:
     async def route_dispatch(self, request):
         self.session_index += 1
         session = self.session_index
-        return RedirectResponse(url=f"{self.path}/{session}")
+        if self.hide_sessions:
+            return await self._get_for_session(session).route_main(request)
+        else:
+            return RedirectResponse(url=f"{self.path}/{session}")
 
     async def route_main(self, request):
         return await self._get(request).route_main(request)
