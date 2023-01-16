@@ -2,6 +2,7 @@ import asyncio as aio
 import base64
 import inspect
 import json
+import traceback
 from functools import wraps
 from pathlib import Path
 from uuid import uuid4 as uuid
@@ -65,8 +66,11 @@ class Cub:
             self._sd_coro = None
 
     async def run(self):
-        await self.fn(self.page)
-        await self.page.sync()
+        try:
+            await self.fn(self.page)
+            await self.page.sync()
+        except Exception as exc:
+            traceback.print_exc()
 
     async def route_main(self, request):
         self.unschedule_selfdestruct()
