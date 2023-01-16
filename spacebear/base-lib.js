@@ -104,3 +104,19 @@ class $$BEAR_PROMISE {
         })
     }
 }
+
+
+function $$BEAR_QUEUE(id) {
+    return async (...args) => {
+        return await fetch(`${BEAR_ROUTE}/queue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                reqid: id,
+                value: args,
+            })
+        })
+    }
+}

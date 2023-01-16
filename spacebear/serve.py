@@ -149,6 +149,14 @@ class Cub:
             )
         return JSONResponse({"status": "ok"})
 
+    async def route_queue(self, request):
+        data = await request.json()
+        self.representer.queue_registry.put(
+            qid=data["reqid"],
+            value=data["value"],
+        )
+        return JSONResponse({"status": "ok"})
+
 
 def forward_cub(fn):
     @wraps(fn)
@@ -215,6 +223,10 @@ class MotherBear:
     async def route_post(self, request, cub):
         return await cub.route_post(request)
 
+    @forward_cub
+    async def route_queue(self, request, cub):
+        return await cub.route_queue(request)
+
     async def route_static(self, request):
         pth = here / request.path_params["path"]
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
@@ -233,6 +245,7 @@ class MotherBear:
                 ),
                 Route("/{session:str}/file/{path:path}", self.route_file),
                 Route("/{session:str}/post", self.route_post, methods=["POST"]),
+                Route("/{session:str}/queue", self.route_queue, methods=["POST"]),
                 WebSocketRoute("/{session:str}/socket", self.route_socket),
             ],
         )

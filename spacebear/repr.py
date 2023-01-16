@@ -1,5 +1,5 @@
 import weakref
-from asyncio import Future
+from asyncio import Future, Queue
 from collections import deque
 from hashlib import md5
 from itertools import count
@@ -110,11 +110,26 @@ class FutureRegistry:
         del self.futures[fid]
 
 
+class QueueRegistry:
+    def __init__(self):
+        self.current_id = count()
+        self.queues = {}
+
+    def register(self, queue):
+        qid = next(self.current_id)
+        self.queues[qid] = queue
+        return qid
+
+    def put(self, qid, value):
+        self.queues[qid].put_nowait(value)
+
+
 class Representer:
     def __init__(self, route):
         callback_registry = self.callback_registry = CallbackRegistry(weak=False)
         file_registry = self.file_registry = FileRegistry()
         future_registry = self.future_registry = FutureRegistry()
+        queue_registry = self.queue_registry = QueueRegistry()
         self.route = route
         self.hrepr = hrepr
 
@@ -133,13 +148,23 @@ class Representer:
             fid = future_registry.register(future)
             return f"(new $$BEAR_PROMISE({fid}))"
 
+        @js_embed.register
+        def js_embed(self, queue: Queue):
+            qid = queue_registry.register(queue)
+            return f"$$BEAR_QUEUE({qid})"
+
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
             method_id = callback_registry.register(fn)
             if attr.startswith("hx_"):
                 return f"{route}/method/{method_id}"
             else:
-                return f"$$BEAR({method_id})"
+                return f"$$BEAR_FUNC({method_id})(event)"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, queue: Queue):
+            qid = queue_registry.register(queue)
+            return f"$$BEAR_QUEUE({qid})(event)"
 
         @attr_embed.register
         def attr_embed(self, attr: str, pth: Path):
