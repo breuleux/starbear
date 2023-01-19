@@ -18,7 +18,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
-from spacebear.utils import QueueResult
+from .utils import QueueResult
 
 from .page import Page
 from .repr import Representer

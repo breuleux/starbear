@@ -65,7 +65,7 @@ class FileRegistry:
                 return (anchor, self.file_to_url[anchor])
         else:
             anchor = filename.parent
-            while not (anchor / "spacebear-anchor").exists():
+            while not (anchor / "starbear-anchor").exists():
                 anchor = anchor.parent
                 if anchor == Path("/"):
                     anchor = filename.parent

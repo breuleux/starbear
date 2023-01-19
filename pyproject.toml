@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "spacebear"
+name = "starbear"
 version = "0.1.0"
 description = ""
 authors = ["Olivier Breuleux <breuleux@gmail.com>"]
@@ -22,7 +22,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
-known_first_party = "spacebear"
+known_first_party = "starbear"
 known_third_party = ""
 multi_line_output = 3
 include_trailing_comma = true
