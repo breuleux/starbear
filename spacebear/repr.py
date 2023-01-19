@@ -9,6 +9,8 @@ from typing import Union
 
 from hrepr import embed, hrepr, standard_html
 
+from .utils import QueueWithTag
+
 
 class CallbackRegistry:
     def __init__(self, weak=False, keep=None):
@@ -153,6 +155,11 @@ class Representer:
             qid = queue_registry.register(queue)
             return f"$$BEAR_QUEUE({qid})"
 
+        @js_embed.register
+        def js_embed(self, qwt: QueueWithTag):
+            qid = queue_registry.register(qwt.queue)
+            return f"$$BEAR_QUEUE({qid}, '{qwt.tag}')"
+
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
             method_id = callback_registry.register(fn)
@@ -165,6 +172,11 @@ class Representer:
         def attr_embed(self, attr: str, queue: Queue):
             qid = queue_registry.register(queue)
             return f"$$BEAR_QUEUE({qid})(event)"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, qwt: QueueWithTag):
+            qid = queue_registry.register(qwt.queue)
+            return f"$$BEAR_QUEUE({qid}, '{qwt.tag}')(event)"
 
         @attr_embed.register
         def attr_embed(self, attr: str, pth: Path):

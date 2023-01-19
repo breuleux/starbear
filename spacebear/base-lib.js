@@ -1,4 +1,36 @@
 
+var $_autoid = 0
+
+
+HTMLElement.prototype.toJSON = function () {
+    if (!this.id) {
+        $_autoid++;
+        this.id = `$$AUTOID${$_autoid}`
+    }
+    return {
+        "%": "HTMLElement",
+        selector: `#${this.id}`
+    }
+}
+
+
+Event.prototype.toJSON = function () {
+    return {
+        type: this.type,
+        inputType: this.inputType,
+        button: this.button,
+        buttons: this.buttons,
+        shiftKey: this.shiftKey,
+        altKey: this.altKey,
+        ctrlKey: this.ctrlKey,
+        metaKey: this.metaKey,
+        key: this.key,
+        target: this.target,
+        value: this.target.value,
+    }
+}
+
+
 function $$BEAR_FUNC(id) {
     return async (...args) => {
         return await fetch(`${BEAR_ROUTE}/method/${id}`, {
@@ -12,7 +44,7 @@ function $$BEAR_FUNC(id) {
 }
 
 
-function $$BEAR(id, ...args) {
+function $$BEAR(id) {
     const exec = $$BEAR_FUNC(id);
     const execNow = async () => {
         try {
@@ -29,7 +61,6 @@ function $$BEAR(id, ...args) {
             });
         }
         catch(exc) {
-            let message = `${exc.type}: ${exc.message}`;
             throw exc;
         }
     }
@@ -106,7 +137,7 @@ class $$BEAR_PROMISE {
 }
 
 
-function $$BEAR_QUEUE(id) {
+function $$BEAR_QUEUE(id, tag) {
     return async (...args) => {
         return await fetch(`${BEAR_ROUTE}/queue`, {
             method: 'POST',
@@ -116,6 +147,7 @@ function $$BEAR_QUEUE(id) {
             body: JSON.stringify({
                 reqid: id,
                 value: args,
+                tag: tag,
             })
         })
     }

@@ -18,10 +18,28 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
+from spacebear.utils import QueueResult
+
 from .page import Page
 from .repr import Representer
 
 here = Path(__file__).parent
+
+
+construct = {}
+
+
+def register_constructor(key):
+    def deco(fn):
+        construct[key] = fn
+        return fn
+
+    return deco
+
+
+@register_constructor("HTMLElement")
+def _(page, selector):
+    return page[selector]
 
 
 class Queue2(aio.Queue):
@@ -71,6 +89,18 @@ class Cub:
             await self.page.sync()
         except Exception as exc:
             traceback.print_exc()
+
+    def _object_hook(self, dct):
+        if "%" in dct:
+            args = dict(dct)
+            args.pop("%")
+            return construct[dct["%"]](self.page, **args)
+        else:
+            return dct
+
+    async def json(self, request):
+        body = await request.body()
+        return json.loads(body, object_hook=self._object_hook)
 
     async def route_main(self, request):
         self.unschedule_selfdestruct()
@@ -124,7 +154,7 @@ class Cub:
         method_id = request.path_params["method"]
         method = self.representer.callback_registry.resolve(method_id)
         try:
-            args = await request.json()
+            args = await self.json(request)
         except json.JSONDecodeError:
             args = [await request.body()]
         result = method(*args, **request.query_params)
@@ -136,7 +166,7 @@ class Cub:
             return JSONResponse(result)
 
     async def route_post(self, request):
-        data = await request.json()
+        data = await self.json(request)
         if "value" in data:
             self.representer.future_registry.resolve(
                 fid=data["reqid"],
@@ -150,10 +180,10 @@ class Cub:
         return JSONResponse({"status": "ok"})
 
     async def route_queue(self, request):
-        data = await request.json()
+        data = await self.json(request)
         self.representer.queue_registry.put(
             qid=data["reqid"],
-            value=data["value"],
+            value=QueueResult(tag=data.get("tag", None), args=data["value"]),
         )
         return JSONResponse({"status": "ok"})
 
