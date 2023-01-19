@@ -18,10 +18,9 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
-from .utils import QueueResult
-
 from .page import Page
 from .repr import Representer
+from .utils import QueueResult, keyword_decorator
 
 here = Path(__file__).parent
 
@@ -205,7 +204,7 @@ def forward_cub(fn):
 class MotherBear:
     def __init__(self, fn, path, session_timeout=60, hide_sessions=True):
         self.fn = fn
-        self.path = path
+        self.path = path.rstrip("/")
         self.session_timeout = session_timeout
         self.hide_sessions = hide_sessions
         self.cubs = {}
@@ -281,8 +280,6 @@ class MotherBear:
         )
 
 
-def bear(path):
-    def deco(fn):
-        return MotherBear(fn, path).routes()
-
-    return deco
+@keyword_decorator
+def bear(fn, path=""):
+    return MotherBear(fn, path).routes()
