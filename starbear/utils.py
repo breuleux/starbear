@@ -6,6 +6,12 @@ class Queue(asyncio.Queue):
     def tag(self, tag):
         return QueueWithTag(self, tag)
 
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        return await self.get()
+
 
 class QueueWithTag:
     def __init__(self, queue=None, tag=None):
