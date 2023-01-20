@@ -96,9 +96,10 @@ class Page:
     async def put(self, element, method, history=None):
         return await self._put(element, method, history=history, send_resources=True)
 
-    def print(self, element):
-        element = H.div(self._to_element(element))
-        self._push(self.put(element, "beforeend"))
+    def print(self, *elements):
+        for element in elements:
+            element = H.div(self._to_element(element))
+            self._push(self.put(element, "beforeend"))
 
     def print_html(self, html):
         self._push(self._put(H.div(H.raw(html)), "beforeend"))
