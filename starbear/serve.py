@@ -288,5 +288,5 @@ class MotherBear:
 
 
 @keyword_decorator
-def bear(fn, path=""):
-    return MotherBear(fn, path).routes()
+def bear(fn, path="", **kwargs):
+    return MotherBear(fn, path, **kwargs).routes()
