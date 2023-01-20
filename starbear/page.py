@@ -89,7 +89,7 @@ class Page:
         to_send = str(parts)
         if extra:
             to_send += str(
-                H.div(extra, style="display:none", hx_swap_oob=f"{method}:{sel}")
+                H.div(extra, style="display:none", hx_swap_oob=f"beforeend:{sel}")
             )
         return await self.oq.put((to_send, history))
 
