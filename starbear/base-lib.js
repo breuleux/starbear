@@ -14,6 +14,17 @@ HTMLElement.prototype.toJSON = function () {
 }
 
 
+HTMLFormControlsCollection.prototype.toJSON = function () {
+    const results = {};
+    for (let [k, v] of Object.entries(this)) {
+        if (isNaN(k)) {
+            results[k] = v.type === "checkbox" ? v.checked : v.value;
+        }
+    }
+    return results;
+}
+
+
 Event.prototype.toJSON = function () {
     return {
         type: this.type,
@@ -26,6 +37,7 @@ Event.prototype.toJSON = function () {
         metaKey: this.metaKey,
         key: this.key,
         target: this.target,
+        form: this.target.elements,
         value: this.target.value,
     }
 }
@@ -40,45 +52,6 @@ function $$BEAR_FUNC(id) {
             },
             body: JSON.stringify(args),
         })
-    }
-}
-
-
-function $$BEAR(id) {
-    const exec = $$BEAR_FUNC(id);
-    const execNow = async () => {
-        try {
-            await exec({
-                type: evt.type,
-                button: evt.button,
-                shiftKey: evt.shiftKey,
-                altKey: evt.altKey,
-                ctrlKey: evt.ctrlKey,
-                metaKey: evt.metaKey,
-                key: evt.key,
-                offsetX: evt.offsetX,
-                offsetY: evt.offsetY,
-            });
-        }
-        catch(exc) {
-            throw exc;
-        }
-    }
-
-    let evt = window.event;
-
-    if (evt === undefined || evt.type === "load") {
-        // If not in an event handler, we return the execution
-        // function directly
-        return exec;
-    }
-    else {
-        // The call is in an event handler like onclick, for example
-        // <div onclick="$$BEAR(15)">...</div>, so we execute it
-        // immediately.
-        evt.preventDefault();
-        evt.stopPropagation();
-        execNow();
     }
 }
 
@@ -151,4 +124,12 @@ function $$BEAR_QUEUE(id, tag) {
             })
         })
     }
+}
+
+
+function $$BEAR_EVENT(func) {
+    let evt = window.event;
+    evt.preventDefault();
+    evt.stopPropagation();
+    func(evt);
 }
