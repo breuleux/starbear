@@ -1,6 +1,9 @@
 import asyncio
 import functools
 from dataclasses import dataclass
+from hashlib import md5
+from mimetypes import guess_type
+from uuid import uuid4
 
 ABSENT = object()
 
@@ -51,3 +54,16 @@ class QueueResult:
     def arg(self):
         assert len(self.args) == 1
         return self.args[0]
+
+
+class VirtualFile:
+    def __init__(self, content, type=None, name=None):
+        if type is None:
+            if name is not None:
+                type, _ = guess_type(url=name)
+
+        self.type = type
+        self.content = content
+        self.name = md5(content.encode("utf8")).hexdigest()
+        if name is not None:
+            self.name += f"/{name}"

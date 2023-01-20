@@ -14,6 +14,7 @@ from starlette.responses import (
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
+    Response,
 )
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
@@ -249,6 +250,11 @@ class MotherBear:
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
 
     @forward_cub
+    async def route_vfile(self, request, cub):
+        vf = cub.representer.vfile_registry.get(request.path_params["path"])
+        return Response(content=vf.content, media_type=vf.type)
+
+    @forward_cub
     async def route_post(self, request, cub):
         return await cub.route_post(request)
 
@@ -273,6 +279,7 @@ class MotherBear:
                     methods=["GET", "POST"],
                 ),
                 Route("/{session:str}/file/{path:path}", self.route_file),
+                Route("/{session:str}/vfile/{path:path}", self.route_vfile),
                 Route("/{session:str}/post", self.route_post, methods=["POST"]),
                 Route("/{session:str}/queue", self.route_queue, methods=["POST"]),
                 WebSocketRoute("/{session:str}/socket", self.route_socket),

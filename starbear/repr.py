@@ -9,7 +9,7 @@ from typing import Union
 
 from hrepr import embed, hrepr, standard_html
 
-from .utils import QueueWithTag
+from .utils import QueueWithTag, VirtualFile
 
 
 class CallbackRegistry:
@@ -89,6 +89,18 @@ class FileRegistry:
         return anchor and str(anchor / orig.relative_to(url))
 
 
+class VFileRegistry:
+    def __init__(self):
+        self.vfiles = {}
+
+    def register(self, vfile):
+        self.vfiles[vfile.name] = vfile
+        return vfile.name
+
+    def get(self, pth):
+        return self.vfiles[pth]
+
+
 class FutureRegistry:
     def __init__(self):
         self.current_id = count()
@@ -130,6 +142,7 @@ class Representer:
     def __init__(self, route):
         callback_registry = self.callback_registry = CallbackRegistry(weak=False)
         file_registry = self.file_registry = FileRegistry()
+        vfile_registry = self.vfile_registry = VFileRegistry()
         future_registry = self.future_registry = FutureRegistry()
         queue_registry = self.queue_registry = QueueRegistry()
         self.route = route
@@ -182,6 +195,18 @@ class Representer:
         def attr_embed(self, attr: str, pth: Path):
             new_pth = file_registry.register(pth)
             return f"{route}/file/{new_pth}"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, vf: VirtualFile):
+            pth = vfile_registry.register(vf)
+            return f"{route}/vfile/{pth}"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, style: dict):
+            if attr == "style":
+                return ";".join(f"{k}:{v}" for k, v in style.items())
+            else:
+                raise TypeError(f"Cannot serialize a dict for attribute '{attr}'")
 
         self.printer = standard_html.fork(
             js_embed=js_embed,
