@@ -8,8 +8,9 @@ from types import FunctionType, MethodType
 from typing import Union
 
 from hrepr import embed, hrepr, standard_html
+from ovld import has_attribute
 
-from .utils import ClientWrap, VirtualFile
+from .utils import VirtualFile
 
 
 class CallbackRegistry:
@@ -140,6 +141,7 @@ class QueueRegistry:
 
 class Representer:
     def __init__(self, route):
+        representer = self
         callback_registry = self.callback_registry = CallbackRegistry(weak=False)
         file_registry = self.file_registry = FileRegistry()
         vfile_registry = self.vfile_registry = VFileRegistry()
@@ -169,10 +171,8 @@ class Representer:
             return f"$$BEAR_QUEUE({qid})"
 
         @js_embed.register
-        def js_embed(self, cw: ClientWrap):
-            fn = self(cw.func)
-            options = self(cw.options)
-            return f"$$BEAR_WRAP({fn}, {options})"
+        def js_embed(self, obj: has_attribute("__js_embed__")):
+            return obj.__js_embed__(representer)
 
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
@@ -198,17 +198,18 @@ class Representer:
             return f"{route}/vfile/{pth}"
 
         @attr_embed.register
-        def attr_embed(self, attr: str, cw: ClientWrap):
-            fn = js_embed(cw.func)
-            options = js_embed(cw.options)
-            return f"$$BEAR_EVENT($$BEAR_WRAP({fn}, {options}))"
-
-        @attr_embed.register
         def attr_embed(self, attr: str, style: dict):
             if attr == "style":
                 return ";".join(f"{k}:{v}" for k, v in style.items())
             else:
                 raise TypeError(f"Cannot serialize a dict for attribute '{attr}'")
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, obj: has_attribute("__attr_embed__")):
+            return obj.__attr_embed__(representer, attr)
+
+        self.js_embed = js_embed
+        self.attr_embed = attr_embed
 
         self.printer = standard_html.fork(
             js_embed=js_embed,
