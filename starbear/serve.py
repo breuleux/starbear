@@ -21,7 +21,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
 from .repr import Representer
-from .utils import QueueResult, keyword_decorator
+from .utils import keyword_decorator
 
 here = Path(__file__).parent
 
@@ -183,7 +183,7 @@ class Cub:
         data = await self.json(request)
         self.representer.queue_registry.put(
             qid=data["reqid"],
-            value=QueueResult(tag=data.get("tag", None), args=data["value"]),
+            value=data["value"],
         )
         return JSONResponse({"status": "ok"})
 

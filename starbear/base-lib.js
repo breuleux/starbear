@@ -110,8 +110,8 @@ class $$BEAR_PROMISE {
 }
 
 
-function $$BEAR_QUEUE(id, tag) {
-    return async (...args) => {
+function $$BEAR_QUEUE(id) {
+    return async value => {
         return await fetch(`${BEAR_ROUTE}/queue`, {
             method: 'POST',
             headers: {
@@ -119,8 +119,7 @@ function $$BEAR_QUEUE(id, tag) {
             },
             body: JSON.stringify({
                 reqid: id,
-                value: args,
-                tag: tag,
+                value: value,
             })
         })
     }
@@ -167,6 +166,7 @@ function $$BEAR_WRAP(func, options) {
 
     function getform(f) {
         return event => {
+            // TODO: proper error when this is not an event
             let element = event.target;
             while (!(element.tagName === "FORM") && (element = element.parentNode)) {
             }
@@ -175,8 +175,19 @@ function $$BEAR_WRAP(func, options) {
         }
     }
 
-    if (options.getform) {
-        func = getform(func);
+    function part(f, pre_args) {
+        return (...post_args) => f(...pre_args, ...post_args)
+    }
+
+    function pack(f) {
+        return (...args) => f(args)
+    }
+
+    if (options.pack) {
+        func = pack(func);
+    }
+    if (options.partial) {
+        func = part(func, options.partial);
     }
     if (options.extract) {
         let extractors = options.extract;
@@ -185,6 +196,9 @@ function $$BEAR_WRAP(func, options) {
         }
         extractors = extractors.map(x => x.split("."));
         func = extract(func, extractors);
+    }
+    if (options.form) {
+        func = getform(func);
     }
     if (options.debounce) {
         func = debounce(func, options.debounce * 1000);

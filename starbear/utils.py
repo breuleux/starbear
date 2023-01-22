@@ -30,30 +30,13 @@ def keyword_decorator(deco):
 
 class Queue(asyncio.Queue):
     def tag(self, tag):
-        return QueueWithTag(self, tag)
+        return ClientWrap(self, partial=[tag], pack=True)
 
     def __aiter__(self):
         return self
 
     async def __anext__(self):
         return await self.get()
-
-
-class QueueWithTag:
-    def __init__(self, queue=None, tag=None):
-        self.queue = queue or asyncio.Queue()
-        self.tag = tag
-
-
-@dataclass
-class QueueResult:
-    args: list
-    tag: str
-
-    @property
-    def arg(self):
-        assert len(self.args) == 1
-        return self.args[0]
 
 
 class VirtualFile:
@@ -74,15 +57,23 @@ class ClientWrap:
     func: object
     debounce: float = 0
     extract: Union[list[str], str] = None
-    getform: bool = False
+    form: bool = False
+    pack: bool = False
+    partial: object = ABSENT
 
     @property
     def options(self):
+        if self.partial is ABSENT:
+            part = None
+        elif not isinstance(self.partial, (list, tuple)):
+            part = [self.partial]
         return {
+            "id": id(self),
             "debounce": self.debounce,
             "extract": self.extract,
-            "getform": self.getform,
-            "id": id(self),
+            "form": self.form,
+            "pack": self.pack,
+            "partial": part,
         }
 
     def __aiter__(self):
