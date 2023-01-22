@@ -3,7 +3,7 @@ import functools
 from dataclasses import dataclass
 from hashlib import md5
 from mimetypes import guess_type
-from uuid import uuid4
+from typing import Union
 
 ABSENT = object()
 
@@ -67,3 +67,23 @@ class VirtualFile:
         self.name = md5(content.encode("utf8")).hexdigest()
         if name is not None:
             self.name += f"/{name}"
+
+
+@dataclass
+class ClientWrap:
+    func: object
+    debounce: float = 0
+    extract: Union[list[str], str] = None
+    getform: bool = False
+
+    @property
+    def options(self):
+        return {
+            "debounce": self.debounce,
+            "extract": self.extract,
+            "getform": self.getform,
+            "id": id(self),
+        }
+
+    def __aiter__(self):
+        return self.func

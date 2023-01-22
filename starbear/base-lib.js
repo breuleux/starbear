@@ -133,3 +133,61 @@ function $$BEAR_EVENT(func) {
     evt.stopPropagation();
     func(evt);
 }
+
+
+$$_BEAR_TIMERS = {};
+
+
+function $$BEAR_WRAP(func, options) {
+    const id = options.id;
+
+    function debounce(f, timeout) {
+        return (...args) => {
+            clearTimeout($$_BEAR_TIMERS[id]);
+            $$_BEAR_TIMERS[id] = setTimeout(
+                () => { f(...args); },
+                timeout,
+            );
+        };
+    }
+
+    function extract(f, extractors) {
+        return arg => {
+            const args = [];
+            for (const extractor of extractors) {
+                let value = arg;
+                for (const part of extractor) {
+                    value = value[part];
+                }
+                args.push(value);
+            }
+            return f(...args);
+        }
+    }
+
+    function getform(f) {
+        return event => {
+            let element = event.target;
+            while (!(element.tagName === "FORM") && (element = element.parentNode)) {
+            }
+            const form = element ? element.elements.toJSON() : {};
+            return f(form);
+        }
+    }
+
+    if (options.getform) {
+        func = getform(func);
+    }
+    if (options.extract) {
+        let extractors = options.extract;
+        if (typeof extractors === 'string') {
+            extractors = [extractors];
+        }
+        extractors = extractors.map(x => x.split("."));
+        func = extract(func, extractors);
+    }
+    if (options.debounce) {
+        func = debounce(func, options.debounce * 1000);
+    }
+    return func;
+}

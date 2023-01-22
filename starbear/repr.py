@@ -9,7 +9,7 @@ from typing import Union
 
 from hrepr import embed, hrepr, standard_html
 
-from .utils import QueueWithTag, VirtualFile
+from .utils import ClientWrap, QueueWithTag, VirtualFile
 
 
 class CallbackRegistry:
@@ -173,6 +173,12 @@ class Representer:
             qid = queue_registry.register(qwt.queue)
             return f"$$BEAR_QUEUE({qid}, '{qwt.tag}')"
 
+        @js_embed.register
+        def js_embed(self, cw: ClientWrap):
+            fn = self(cw.func)
+            options = self(cw.options)
+            return f"$$BEAR_WRAP({fn}, {options})"
+
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
             method_id = callback_registry.register(fn)
@@ -200,6 +206,12 @@ class Representer:
         def attr_embed(self, attr: str, vf: VirtualFile):
             pth = vfile_registry.register(vf)
             return f"{route}/vfile/{pth}"
+
+        @attr_embed.register
+        def attr_embed(self, attr: str, cw: ClientWrap):
+            fn = js_embed(cw.func)
+            options = js_embed(cw.options)
+            return f"$$BEAR_EVENT($$BEAR_WRAP({fn}, {options}))"
 
         @attr_embed.register
         def attr_embed(self, attr: str, style: dict):
