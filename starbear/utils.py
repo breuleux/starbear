@@ -56,27 +56,34 @@ class VirtualFile:
 
 @dataclass
 class ClientWrap:
-    def __init__(
-        self, func, debounce=0, extract=None, form=False, pack=False, partial=ABSENT
-    ):
-        options = {
-            "debounce": debounce,
-            "extract": extract,
-            "form": form,
-            "pack": pack,
-        }
-        if partial is not ABSENT:
-            if isinstance(partial, (list, tuple)):
-                options["partial"] = partial
-            else:
-                options["partial"] = [partial]
+    DEFAULTS = {
+        "debounce": 0,
+        "extract": None,
+        "form": False,
+        "pack": False,
+        "partial": None,
+    }
+
+    def __init__(self, func, **options):
+        if any((key := k) not in self.DEFAULTS for k in options):
+            raise TypeError(f"Invalid argument to ClientWrap: '{key}'")
 
         if isinstance(func, ClientWrap):
-            self.func = func.func
-            self.options = {**func.options, **options}
+            inherit = func.options
+            func = func.func
         else:
-            self.func = func
-            self.options = options
+            inherit = self.DEFAULTS
+
+        options = {**inherit, **options}
+
+        partial = options["partial"]
+        if partial is None or isinstance(partial, (list, tuple)):
+            options["partial"] = partial
+        else:
+            options["partial"] = [partial]
+
+        self.func = func
+        self.options = options
 
     def wrap(self, **options):
         return type(self)(self, **options)

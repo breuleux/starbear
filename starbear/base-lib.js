@@ -14,13 +14,15 @@ HTMLElement.prototype.toJSON = function () {
 }
 
 
-HTMLFormControlsCollection.prototype.toJSON = function () {
+HTMLFormControlsCollection.prototype.toJSON = function (event) {
     const results = {};
     for (let [k, v] of Object.entries(this)) {
         if (isNaN(k)) {
             results[k] = v.type === "checkbox" ? v.checked : v.value;
         }
     }
+    event = event || window.event
+    results.$submit = (event && event.type == "submit");
     return results;
 }
 
@@ -170,7 +172,7 @@ function $$BEAR_WRAP(func, options) {
             let element = event.target;
             while (!(element.tagName === "FORM") && (element = element.parentNode)) {
             }
-            const form = element ? element.elements.toJSON() : {};
+            const form = element ? element.elements.toJSON(event) : {};
             return f(form);
         }
     }
