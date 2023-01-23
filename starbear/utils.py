@@ -82,6 +82,8 @@ class ClientWrap:
         else:
             options["partial"] = [partial]
 
+        options["id"] = id(func)
+
         self.func = func
         self.options = options
 

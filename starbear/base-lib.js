@@ -152,6 +152,13 @@ function $$BEAR_WRAP(func, options) {
         };
     }
 
+    function nodebounce(f) {
+        return (...args) => {
+            clearTimeout($$_BEAR_TIMERS[id]);
+            f(...args);
+        };
+    }
+
     function extract(f, extractors) {
         return arg => {
             const args = [];
@@ -204,6 +211,9 @@ function $$BEAR_WRAP(func, options) {
     }
     if (options.debounce) {
         func = debounce(func, options.debounce * 1000);
+    }
+    else {
+        func = nodebounce(func);
     }
     return func;
 }
