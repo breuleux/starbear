@@ -10,6 +10,9 @@ Welcome to Starbear's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   intro.rst
+   tutorial.rst
+
 
 
 Indices and tables
