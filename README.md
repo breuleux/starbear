@@ -1,7 +1,9 @@
 
 # Starbear
 
-[Documentation](https://breuleux.github.io/starbear)
+[Documentation](https://starbear.readthedocs.io/en/latest/)
+
+[Tutorial](https://starbear.readthedocs.io/en/latest/tutorial.html#tutorial)
 
 Starbear allow creating interactive local web applications in Python very easily.
 

@@ -119,7 +119,7 @@ Now let's get to something more interesting. How do we update the page over time
             await asyncio.sleep(1)
             page["#count"].set(str(i))
 
-By indexing ``page`` with a selector, we obtain an object with methods that let us set the contents of the appropriate elements. The selector is not limited to ids. As we will see later ``page["head"].print`` is how we can set a title for the page, add stylesheets, etc.
+By indexing ``page`` with a selector, we obtain an object with methods that let us set the contents of the appropriate elements. The selector is not limited to ids (as we saw earlier with ``page["head"].print(H.title(...))``).
 
 Using autoid
 ++++++++++++
