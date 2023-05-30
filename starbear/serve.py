@@ -147,7 +147,10 @@ class Cub:
                 await ws.send_text(entry)
             self.reset = False
 
-        await aio.wait([recv(), send()], return_when=aio.FIRST_COMPLETED)
+        await aio.wait(
+            [aio.create_task(recv()), aio.create_task(send())],
+            return_when=aio.FIRST_COMPLETED,
+        )
         self.schedule_selfdestruct()
 
     async def route_method(self, request):
