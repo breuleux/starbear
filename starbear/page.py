@@ -22,8 +22,7 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
-        self.do = Caller(self, return_result=False)
-        self.call = Caller(self, return_result=True)
+        self.js = JavaScriptOperation(self, [])
 
     def __getitem__(self, selector):
         if isinstance(selector, Tag):
@@ -122,27 +121,42 @@ class Page:
         return await self.iq.get()
 
 
-class Caller:
-    def __init__(self, element, return_result):
+call_template = "$$BEAR_CB({selector}, {extractor}, {future});"
+
+
+def _extractor(sequence):
+    result = "x"
+    for entry in sequence:
+        if isinstance(entry, str):
+            result = f"{result}.{entry}"
+        elif isinstance(entry, (list, tuple)):
+            args = ",".join([str(Resource(x)) for x in entry])
+            result = f"{result}({args})"
+        else:
+            raise TypeError()
+    return f"(x => {result})"
+
+
+class JavaScriptOperation:
+    def __init__(self, element, sequence):
         self.__element = element
-        self.__selector = element.selector
-        self.__return_result = return_result
+        self.__sequence = sequence
+        self.__future = aio.Future()
 
     def __getattr__(self, attr):
-        def call(*args):
-            call_template = "$$BEAR_CB('{selector}', '{method}', {args}, {future}, {return_result});"
-            future = aio.Future()
-            self.__element.page_select("body").without_history().print(
-                H.script(
-                    call_template.format(
-                        method=attr,
-                        selector=self.__selector,
-                        future=Resource(future),
-                        args=Resource(args),
-                        return_result=int(self.__return_result),
-                    )
-                ),
-            )
-            return future
+        return type(self)(self.__element, [*self.__sequence, attr])
 
-        return call
+    def __call__(self, *args):
+        return type(self)(self.__element, [*self.__sequence, args])
+
+    def __await__(self):
+        self.__element.page_select("body").without_history().print(
+            H.script(
+                call_template.format(
+                    selector=Resource(self.__element.selector),
+                    extractor=_extractor(self.__sequence),
+                    future=Resource(self.__future),
+                )
+            ),
+        )
+        return iter(self.__future)

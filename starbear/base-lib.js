@@ -58,15 +58,17 @@ function $$BEAR_FUNC(id) {
 }
 
 
-async function $$BEAR_CB(selector, method, args, promise, return_result) {
-    let object = window;
+async function $$BEAR_CB(selector, extractor, promise) {
+    let root = window;
+
     if (selector) {
         const element = document.querySelector(selector);
-        object = (await (element.__object));
+        root = (await (element.__object));
     }
+
     try {
-        let result = await object[method](...args);
-        await promise.resolve(return_result ? result : null);
+        let result = await extractor(root);
+        await promise.resolve(result);
     }
     catch (exc) {
         await promise.reject(exc);
