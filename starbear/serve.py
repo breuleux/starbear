@@ -51,11 +51,12 @@ class Queue2(aio.Queue):
 
 
 class Cub:
-    def __init__(self, mother, session):
+    def __init__(self, mother, session, query_params={}):
         self.mother = mother
         self.fn = mother.fn
         self.path = mother.path
         self.session = session
+        self.query_params = query_params
         self.route = f"{self.path}/{self.session}"
         self.methods = {}
         self.representer = Representer(self.route)
@@ -64,7 +65,9 @@ class Cub:
         self.history = []
         self.reset = False
         self.ws = None
-        self.page = Page(self.iq, self.oq, representer=self.representer)
+        self.page = Page(
+            self.iq, self.oq, representer=self.representer, query_params=query_params
+        )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
 
@@ -191,11 +194,18 @@ class Cub:
         return JSONResponse({"status": "ok"})
 
 
+def get_session_from_request(request):
+    session_base = request.path_params.get("session", None)
+    if session_base is None:
+        session_base = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
+    return session_base
+
+
 def forward_cub(fn):
     @wraps(fn)
     async def fwd(self, request):
-        session = request.path_params["session"]
-        cub = self._get(session)
+        session = get_session_from_request(request)
+        cub = self._get(session, query_params=request.query_params)
         if cub is None:
             print(f"Trying to access missing session: {session}")
             return JSONResponse({"missing": session}, status_code=404)
@@ -213,25 +223,32 @@ class MotherBear:
         self.hide_sessions = hide_sessions
         self.cubs = {}
 
-    def _get(self, sess, ensure=False):
+    def _get(self, sess, query_params={}, ensure=False):
         if sess not in self.cubs:
             if ensure:
                 print(f"Creating session: {sess}")
-                self.cubs[sess] = Cub(self, sess)
+                self.cubs[sess] = Cub(self, sess, query_params=query_params)
             else:
                 return None
         return self.cubs[sess]
 
     async def route_dispatch(self, request):
-        session = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
+        session = get_session_from_request(request)
         if self.hide_sessions:
-            return await self._get(session, ensure=True).route_main(request)
+            return await self._get(
+                session, query_params=request.query_params, ensure=True
+            ).route_main(request)
         else:
-            return RedirectResponse(url=f"{self.path}/{session}")
+            url = f"{self.path}/{session}"
+            if request.query_params:
+                url = f"{url}?{request.query_params}"
+            return RedirectResponse(url=url)
 
     async def route_main(self, request):
-        session = request.path_params["session"]
-        return await self._get(session, ensure=True).route_main(request)
+        session = get_session_from_request(request)
+        return await self._get(
+            session, query_params=request.query_params, ensure=True
+        ).route_main(request)
 
     @forward_cub
     async def route_socket(self, ws, cub):

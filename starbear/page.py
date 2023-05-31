@@ -12,12 +12,14 @@ class Page:
         oq,
         representer,
         selector=None,
+        query_params={},
         track_history=True,
         sent_resources=None,
     ):
         self.iq = iq
         self.oq = oq
         self.selector = selector
+        self.query_params = query_params
         self.representer = representer
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
