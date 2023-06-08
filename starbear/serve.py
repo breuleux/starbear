@@ -51,13 +51,13 @@ class Queue2(aio.Queue):
 
 
 class Cub:
-    def __init__(self, mother, session, query_params={}):
+    def __init__(self, mother, process, query_params={}):
         self.mother = mother
         self.fn = mother.fn
         self.path = mother.path
-        self.session = session
+        self.process = process
         self.query_params = query_params
-        self.route = f"{self.path}/{self.session}"
+        self.route = f"{self.path}/{self.process}"
         self.methods = {}
         self.representer = Representer(self.route)
         self.iq = aio.Queue()
@@ -73,12 +73,12 @@ class Cub:
 
     def schedule_selfdestruct(self):
         async def sd():
-            await aio.sleep(self.mother.session_timeout)
-            del self.mother.cubs[self.session]
+            await aio.sleep(self.mother.process_timeout)
+            del self.mother.cubs[self.process]
             self.coro.cancel()
-            print(f"Destroyed session: {self.session}")
+            print(f"Destroyed process: {self.process}")
 
-        if self.mother.session_timeout is not None:
+        if self.mother.process_timeout is not None:
             self._sd_coro = aio.create_task(sd())
 
     def unschedule_selfdestruct(self):
@@ -194,21 +194,21 @@ class Cub:
         return JSONResponse({"status": "ok"})
 
 
-def get_session_from_request(request):
-    session_base = request.path_params.get("session", None)
-    if session_base is None:
-        session_base = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
-    return session_base
+def get_process_from_request(request):
+    process_base = request.path_params.get("process", None)
+    if process_base is None:
+        process_base = base64.urlsafe_b64encode(uuid().bytes).decode("utf8").strip("=")
+    return process_base
 
 
 def forward_cub(fn):
     @wraps(fn)
     async def fwd(self, request):
-        session = get_session_from_request(request)
-        cub = self._get(session, query_params=request.query_params)
+        process = get_process_from_request(request)
+        cub = self._get(process, query_params=request.query_params)
         if cub is None:
-            print(f"Trying to access missing session: {session}")
-            return JSONResponse({"missing": session}, status_code=404)
+            print(f"Trying to access missing process: {process}")
+            return JSONResponse({"missing": process}, status_code=404)
         else:
             return await fn(self, request, cub)
 
@@ -216,38 +216,38 @@ def forward_cub(fn):
 
 
 class MotherBear:
-    def __init__(self, fn, path, session_timeout=60, hide_sessions=True):
+    def __init__(self, fn, path, process_timeout=60, hide_processes=True):
         self.fn = fn
         self.path = path.rstrip("/")
-        self.session_timeout = session_timeout
-        self.hide_sessions = hide_sessions
+        self.process_timeout = process_timeout
+        self.hide_processes = hide_processes
         self.cubs = {}
 
-    def _get(self, sess, query_params={}, ensure=False):
-        if sess not in self.cubs:
+    def _get(self, proc, query_params={}, ensure=False):
+        if proc not in self.cubs:
             if ensure:
-                print(f"Creating session: {sess}")
-                self.cubs[sess] = Cub(self, sess, query_params=query_params)
+                print(f"Creating process: {proc}")
+                self.cubs[proc] = Cub(self, proc, query_params=query_params)
             else:
                 return None
-        return self.cubs[sess]
+        return self.cubs[proc]
 
     async def route_dispatch(self, request):
-        session = get_session_from_request(request)
-        if self.hide_sessions:
+        process = get_process_from_request(request)
+        if self.hide_processes:
             return await self._get(
-                session, query_params=request.query_params, ensure=True
+                process, query_params=request.query_params, ensure=True
             ).route_main(request)
         else:
-            url = f"{self.path}/{session}"
+            url = f"{self.path}/{process}"
             if request.query_params:
                 url = f"{url}?{request.query_params}"
             return RedirectResponse(url=url)
 
     async def route_main(self, request):
-        session = get_session_from_request(request)
+        process = get_process_from_request(request)
         return await self._get(
-            session, query_params=request.query_params, ensure=True
+            process, query_params=request.query_params, ensure=True
         ).route_main(request)
 
     @forward_cub
@@ -291,18 +291,18 @@ class MotherBear:
             self.path,
             routes=[
                 Route("/", self.route_dispatch),
-                Route("/{session:str}/static/{path:path}", self.route_static),
-                Route("/{session:str}/", self.route_main),
+                Route("/{process:str}/static/{path:path}", self.route_static),
+                Route("/{process:str}/", self.route_main),
                 Route(
-                    "/{session:str}/method/{method:int}",
+                    "/{process:str}/method/{method:int}",
                     self.route_method,
                     methods=["GET", "POST"],
                 ),
-                Route("/{session:str}/file/{path:path}", self.route_file),
-                Route("/{session:str}/vfile/{path:path}", self.route_vfile),
-                Route("/{session:str}/post", self.route_post, methods=["POST"]),
-                Route("/{session:str}/queue", self.route_queue, methods=["POST"]),
-                WebSocketRoute("/{session:str}/socket", self.route_socket),
+                Route("/{process:str}/file/{path:path}", self.route_file),
+                Route("/{process:str}/vfile/{path:path}", self.route_vfile),
+                Route("/{process:str}/post", self.route_post, methods=["POST"]),
+                Route("/{process:str}/queue", self.route_queue, methods=["POST"]),
+                WebSocketRoute("/{process:str}/socket", self.route_socket),
             ],
         )
 
