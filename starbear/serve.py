@@ -51,12 +51,13 @@ class Queue2(aio.Queue):
 
 
 class Cub:
-    def __init__(self, mother, process, query_params={}):
+    def __init__(self, mother, process, query_params={}, session={}):
         self.mother = mother
         self.fn = mother.fn
         self.path = mother.path
         self.process = process
         self.query_params = query_params
+        self.session = session
         self.route = f"{self.path}/{self.process}"
         self.methods = {}
         self.representer = Representer(self.route)
@@ -66,7 +67,11 @@ class Cub:
         self.reset = False
         self.ws = None
         self.page = Page(
-            self.iq, self.oq, representer=self.representer, query_params=query_params
+            self.iq,
+            self.oq,
+            representer=self.representer,
+            query_params=query_params,
+            session=session,
         )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None

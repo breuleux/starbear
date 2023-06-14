@@ -13,6 +13,7 @@ class Page:
         representer,
         selector=None,
         query_params={},
+        session={},
         track_history=True,
         sent_resources=None,
     ):
@@ -20,6 +21,7 @@ class Page:
         self.oq = oq
         self.selector = selector
         self.query_params = query_params
+        self.session = session
         self.representer = representer
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
