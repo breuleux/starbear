@@ -4,6 +4,7 @@ import inspect
 import json
 import traceback
 from functools import wraps
+from itertools import count
 from pathlib import Path
 from uuid import uuid4 as uuid
 
@@ -16,7 +17,7 @@ from starlette.responses import (
     RedirectResponse,
     Response,
 )
-from starlette.routing import Mount, Route, WebSocketRoute
+from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
@@ -25,6 +26,7 @@ from .utils import keyword_decorator
 
 here = Path(__file__).parent
 
+_count = count()
 
 construct = {}
 
@@ -54,11 +56,10 @@ class Cub:
     def __init__(self, mother, process, query_params={}, session={}):
         self.mother = mother
         self.fn = mother.fn
-        self.path = mother.path
         self.process = process
         self.query_params = query_params
         self.session = session
-        self.route = f"{self.path}/{self.process}"
+        self.route = self.mother.path_for("main", process=self.process).rstrip("/")
         self.methods = {}
         self.representer = Representer(self.route)
         self.iq = aio.Queue()
@@ -221,35 +222,55 @@ def forward_cub(fn):
 
 
 class MotherBear:
-    def __init__(self, fn, path, process_timeout=60, hide_processes=True):
+    def __init__(self, fn, process_timeout=60, hide_processes=True):
         self.fn = fn
-        self.path = path.rstrip("/")
+        self.router = None
         self.process_timeout = process_timeout
         self.hide_processes = hide_processes
         self.cubs = {}
+        self.appid = next(_count)
 
-    def _get(self, proc, query_params={}, ensure=False):
+    def _get(self, proc, query_params={}, session={}, ensure=False):
         if proc not in self.cubs:
             if ensure:
                 print(f"Creating process: {proc}")
-                self.cubs[proc] = Cub(self, proc, query_params=query_params)
+                self.cubs[proc] = Cub(
+                    self, proc, query_params=query_params, session=session
+                )
             else:
                 return None
         return self.cubs[proc]
 
+    def path_for(self, name, **kwargs):
+        return self.router.url_path_for(self._mangle(name), **kwargs)
+
+    def _ensure_router(self, request):
+        router = request.scope["router"]
+        if self.router is None:
+            self.router = router
+        else:
+            assert self.router is router
+
     async def route_dispatch(self, request):
+        self._ensure_router(request)
         process = get_process_from_request(request)
+        main_path = self.path_for("main", process=process)
         if self.hide_processes:
+            try:
+                session = request.session
+            except AssertionError:
+                session = {}
             return await self._get(
-                process, query_params=request.query_params, ensure=True
+                process, query_params=request.query_params, session=session, ensure=True
             ).route_main(request)
         else:
-            url = f"{self.path}/{process}"
+            url = main_path
             if request.query_params:
                 url = f"{url}?{request.query_params}"
             return RedirectResponse(url=url)
 
     async def route_main(self, request):
+        self._ensure_router(request)
         process = get_process_from_request(request)
         return await self._get(
             process, query_params=request.query_params, ensure=True
@@ -257,14 +278,17 @@ class MotherBear:
 
     @forward_cub
     async def route_socket(self, ws, cub):
+        self._ensure_router(ws)
         return await cub.route_socket(ws)
 
     @forward_cub
     async def route_method(self, request, cub):
+        self._ensure_router(request)
         return await cub.route_method(request)
 
     @forward_cub
     async def route_file(self, request, cub):
+        self._ensure_router(request)
         pth = cub.representer.file_registry.get_file_from_url(
             request.path_params["path"]
         )
@@ -276,42 +300,54 @@ class MotherBear:
 
     @forward_cub
     async def route_vfile(self, request, cub):
+        self._ensure_router(request)
         vf = cub.representer.vfile_registry.get(request.path_params["path"])
         return Response(content=vf.content, media_type=vf.type)
 
     @forward_cub
     async def route_post(self, request, cub):
+        self._ensure_router(request)
         return await cub.route_post(request)
 
     @forward_cub
     async def route_queue(self, request, cub):
+        self._ensure_router(request)
         return await cub.route_queue(request)
 
     async def route_static(self, request):
+        self._ensure_router(request)
         pth = here / request.path_params["path"]
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
 
-    def routes(self):
-        return Mount(
-            self.path,
-            routes=[
-                Route("/", self.route_dispatch),
-                Route("/{process:str}/static/{path:path}", self.route_static),
-                Route("/{process:str}/", self.route_main),
-                Route(
-                    "/{process:str}/method/{method:int}",
-                    self.route_method,
-                    methods=["GET", "POST"],
-                ),
-                Route("/{process:str}/file/{path:path}", self.route_file),
-                Route("/{process:str}/vfile/{path:path}", self.route_vfile),
-                Route("/{process:str}/post", self.route_post, methods=["POST"]),
-                Route("/{process:str}/queue", self.route_queue, methods=["POST"]),
-                WebSocketRoute("/{process:str}/socket", self.route_socket),
-            ],
+    def _mangle(self, name):
+        return f"app{self.appid}_{name}"
+
+    def _make_route(self, name, path, cls=Route, **kwargs):
+        return cls(
+            path,
+            getattr(self, f"route_{name}"),
+            name=self._mangle(name),
+            **kwargs,
         )
+
+    def routes(self):
+        return [
+            self._make_route("dispatch", "/"),
+            self._make_route("static", "/{process:str}/static/{path:path}"),
+            self._make_route("main", "/{process:str}/"),
+            self._make_route(
+                "method",
+                "/{process:str}/method/{method:int}",
+                methods=["GET", "POST"],
+            ),
+            self._make_route("file", "/{process:str}/file/{path:path}"),
+            self._make_route("vfile", "/{process:str}/vfile/{path:path}"),
+            self._make_route("post", "/{process:str}/post", methods=["POST"]),
+            self._make_route("queue", "/{process:str}/queue", methods=["POST"]),
+            self._make_route("socket", "/{process:str}/socket", cls=WebSocketRoute),
+        ]
 
 
 @keyword_decorator
-def bear(fn, path="", **kwargs):
-    return MotherBear(fn, path, **kwargs).routes()
+def bear(fn, **kwargs):
+    return MotherBear(fn, **kwargs)
