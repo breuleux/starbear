@@ -3,7 +3,7 @@ import base64
 import inspect
 import json
 import traceback
-from functools import wraps
+from functools import cached_property, wraps
 from itertools import count
 from pathlib import Path
 from uuid import uuid4 as uuid
@@ -17,7 +17,7 @@ from starlette.responses import (
     RedirectResponse,
     Response,
 )
-from starlette.routing import Route, WebSocketRoute
+from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
@@ -224,6 +224,7 @@ def forward_cub(fn):
 class MotherBear:
     def __init__(self, fn, process_timeout=60, hide_processes=True):
         self.fn = fn
+        self.doc = getattr(fn, "__doc__", None)
         self.router = None
         self.process_timeout = process_timeout
         self.hide_processes = hide_processes
@@ -346,6 +347,13 @@ class MotherBear:
             self._make_route("queue", "/{process:str}/queue", methods=["POST"]),
             self._make_route("socket", "/{process:str}/socket", cls=WebSocketRoute),
         ]
+
+    @cached_property
+    def _mnt(self):
+        return Mount("/", routes=self.routes())
+
+    async def __call__(self, scope, receive, send):
+        await self._mnt.handle(scope, receive, send)
 
 
 @keyword_decorator
