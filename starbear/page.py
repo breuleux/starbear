@@ -16,6 +16,7 @@ class Page:
         session={},
         track_history=True,
         sent_resources=None,
+        loop=None,
     ):
         self.iq = iq
         self.oq = oq
@@ -26,6 +27,7 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
+        self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
 
     def __getitem__(self, selector):
@@ -65,6 +67,8 @@ class Page:
         return self.with_history(False)
 
     def _push(self, coro):
+        if aio._get_running_loop() is None:
+            aio._set_running_loop(self.loop)
         task = aio.create_task(coro)
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
