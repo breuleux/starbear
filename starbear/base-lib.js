@@ -62,17 +62,24 @@ async function $$BEAR_CB(selector, extractor, promise) {
     let root = window;
 
     if (selector) {
-        const element = document.querySelector(selector);
-        root = (await (element.__object));
+        root = document.querySelector(selector);
+        if (root.__object) {
+            root = (await (root.__object));
+        }
     }
 
-    try {
-        let result = await extractor(root);
-        await promise.resolve(result);
+    if (promise) {
+        try {
+            let result = await extractor(root);
+            await promise.resolve(result);
+        }
+        catch (exc) {
+            await promise.reject(exc);
+            throw exc;
+        }
     }
-    catch (exc) {
-        await promise.reject(exc);
-        throw exc;
+    else {
+        extractor.call(root);
     }
 }
 

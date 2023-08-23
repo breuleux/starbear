@@ -103,10 +103,10 @@ class Page:
     async def put(self, element, method, history=None):
         return await self._put(element, method, history=history, send_resources=True)
 
-    def print(self, *elements):
+    def print(self, *elements, method="beforeend"):
         for element in elements:
             element = H.div(self._to_element(element))
-            self._push(self.put(element, "beforeend"))
+            self._push(self.put(element, method))
 
     def print_html(self, html):
         self._push(self._put(H.div(H.raw(html)), "beforeend"))
@@ -124,6 +124,17 @@ class Page:
 
     def delete(self):
         self._push(self.put(H.span(), "outerHTML"))
+
+    def do(self, js):
+        self.page_select("body").without_history().print(
+            H.script(
+                call_template.format(
+                    selector=Resource(self.selector),
+                    extractor=f"function () {{ {js} }}",
+                    future="null",
+                )
+            ),
+        )
 
     async def recv(self):
         return await self.iq.get()
