@@ -91,7 +91,7 @@ class Page:
         parts, extra, resources = self.representer.generate(
             element, filter_resources=self.sent_resources if send_resources else None
         )
-        if resources:
+        if not resources.empty():
             await self.page_select("head")._put(H.div(resources), "beforeend")
         to_send = str(parts)
         if extra:
