@@ -11,7 +11,7 @@ Starbear allow creating interactive local web applications in Python very easily
 * Call Python functions from JS, call JS functions from Python.
 * No subroutes: starbear automatically creates the endpoints you need.
 
-**Do not use this in production:** Starbear is not highly efficient and it leaks memory easily (because it would basically require a distributed garbage collector not to). Use this for small apps that you want to run locally or that don't need high uptime and reliability.
+**Do not use this in production (yet):** Starbear is a beta, experimental framework. It is not highly efficient and it may leak memory easily (because it would basically require a distributed garbage collector not to). Use this for small apps that you want to run locally or that don't need high uptime and reliability. In any case, the more Starbear is tested, the more confident we can be about its limitations and the better it will get.
 
 Also the error reporting is not the best right now. Check the developer console in your browser.
 
@@ -33,35 +33,38 @@ from starbear import bear, Queue
 
 @bear
 async def app(page):
+    # Events coming from the webpage will be added to this Queue
     q = Queue()
 
+    # You can print to any part of the page using a CSS selector, for
+    # example we can add stuff to the <head> element:
     page["head"].print(
+        # Use H.xyz to create a <xyz> node
         H.title("Clicking game!"),
+        # If you give a Path object, Starbear will serve the corresponding
+        # file for you.
         H.link(rel="stylesheet", href=Path("path/to/style.css"))
     )
 
+    # page.print prints to <body> by default
     page.print(
+        # If you give a Queue as an onclick handler, the events will be
+        # accumulated in that queue. You can also give a Python function
+        # as a handler.
         H.button("Click me!", onclick=q),
         H.div(
+            # This is the span we want to update, so we put it in a variable
             target := H.span("0").autoid(),
             " clicks"
         )
     )
+
     i = 0
+    # And now we can simply loop over the event queue. Be careful to use *async* for,
+    # which will yield to the event loop between each iteration.
     async for event in q:
         i += 1
+        # We can index the page using any node we created and set its contents
+        # to whatever we desire.
         page[target].set(str(i))
 ```
-
-Unpacking the example:
-
-1. The `app` function receives a `page` parameter that represents the app.
-2. `page` can be indexed with any CSS selector to represent elements on the page.
-3. We print a stylesheet to the `<head>` section of the page with `page["head"].print(...)`
-  * `H.link` creates a `<link>` element.
-  * By providing a `Path` object to `href`, Starbear will automatically make its parent directory available under a mangled route.
-4. `page.print` appends an element to `<body>`.
-5. `H.span(...).autoid()` creates a `span` with an auto-generated id. This will allow us to find and modify it later.
-6. We pass a Queue to the `onclick` attribute of the button
-7. We loop asynchronously on the queue to get the stream of clicks
-8. `page[target].set` replaces the content of `target`, using the id that was auto-generated for it.
