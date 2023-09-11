@@ -23,6 +23,7 @@ from starlette.websockets import WebSocketDisconnect
 from .page import Page
 from .repr import Representer
 from .utils import keyword_decorator
+from .wrap import with_error_display
 
 here = Path(__file__).parent
 
@@ -357,5 +358,7 @@ class MotherBear:
 
 
 @keyword_decorator
-def bear(fn, **kwargs):
+def bear(fn, display_errors=True, **kwargs):
+    if display_errors:
+        fn = with_error_display(fn)
     return MotherBear(fn, **kwargs)
