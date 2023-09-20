@@ -18,6 +18,10 @@ class Placeholder:
     __repr__ = __str__
 
 
+class PlaceholderSequence(list):
+    pass
+
+
 def _parse_template(path_or_string):
     if isinstance(path_or_string, Path):
         source = path_or_string.read_text()
@@ -50,7 +54,7 @@ def _extract_placeholders(txt, single=False):
         elif len(results) == 1:
             return results[0]
         else:
-            raise ValueError(f"Cannot parse into a single unit: {txt}")
+            return PlaceholderSequence(results)
     return results
 
 
@@ -65,7 +69,8 @@ def _html_to_h(etree):
             children.append(subtree.tail)
     return base_node.fill(
         attributes=dict(
-            (x, True if y == "" else _extract_placeholders(y)) for x, y in etree.items()
+            (x, True if y == "" else _extract_placeholders(y, single=True))
+            for x, y in etree.items()
         ),
         children=children,
     )
@@ -74,6 +79,11 @@ def _html_to_h(etree):
 @ovld
 def _template(nodes: Union[list, tuple], values: dict):
     return type(nodes)(_template(node, values) for node in nodes)
+
+
+@ovld
+def _template(seq: PlaceholderSequence, values: dict):
+    return "".join(map(str, (_template(x, values) for x in seq)))
 
 
 @ovld

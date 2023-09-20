@@ -22,6 +22,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
 from .repr import Representer
+from .template import template
 from .utils import keyword_decorator
 from .wrap import with_error_display
 
@@ -114,9 +115,13 @@ class Cub:
 
     async def route_main(self, request):
         self.unschedule_selfdestruct()
-        with open(here / "base-template.html") as tpf:
-            self.reset = True
-            return HTMLResponse(tpf.read().replace("{{{route}}}", self.route))
+        node = template(
+            here / "base-template.html",
+            route=self.route,
+            _asset=lambda name: here / name,
+        )
+        self.reset = True
+        return HTMLResponse(self.representer.generate_string(node))
 
     async def route_socket(self, ws):
         self.unschedule_selfdestruct()
@@ -316,11 +321,6 @@ class MotherBear:
         self._ensure_router(request)
         return await cub.route_queue(request)
 
-    async def route_static(self, request):
-        self._ensure_router(request)
-        pth = here / request.path_params["path"]
-        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
-
     def _mangle(self, name):
         return f"app{self.appid}_{name}"
 
@@ -335,7 +335,6 @@ class MotherBear:
     def routes(self):
         return [
             self._make_route("dispatch", "/"),
-            self._make_route("static", "/{process:str}/static/{path:path}"),
             self._make_route("main", "/{process:str}/"),
             self._make_route(
                 "method",

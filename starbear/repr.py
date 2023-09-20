@@ -219,5 +219,9 @@ class Representer:
     def generate(self, *args, **kwargs):
         return self.printer.generate(*args, **kwargs)
 
+    def generate_string(self, element):
+        parts, extras, resources = self.printer.generate(element)
+        return str(parts)
+
     def __call__(self, node):
         return self.hrepr(node)
