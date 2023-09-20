@@ -31,13 +31,24 @@ class Page:
         self.js = JavaScriptOperation(self, [])
 
     def __getitem__(self, selector):
-        if isinstance(selector, Tag):
-            tid = selector.attributes.get("id", None)
-            if not tid:
-                raise Exception("Cannot locate element because it has no id.")
-            selector = f"#{tid}"
+        def _map_selector(x):
+            if isinstance(x, Tag):
+                tid = x.attributes.get("id", None)
+                if not tid:
+                    raise Exception("Cannot locate element because it has no id.")
+                return f"#{tid}"
+            elif isinstance(x, str):
+                return x
+            else:
+                raise TypeError("Only str or Tag can be used as a selector")
+
+        if not isinstance(selector, tuple):
+            selector = (selector,)
+        selector = " ".join(map(_map_selector, selector))
+
         if self.selector is not None:
             selector = f"{self.selector} {selector}"
+
         return self.page_select(selector)
 
     def page_select(self, selector):
