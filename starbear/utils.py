@@ -28,6 +28,12 @@ def keyword_decorator(deco):
 
 
 class Queue(asyncio.Queue):
+    def putleft(self, entry):
+        self._queue.appendleft(entry)
+        self._unfinished_tasks += 1
+        self._finished.clear()
+        self._wakeup_next(self._getters)
+
     def tag(self, tag):
         return ClientWrap(self, partial=[tag], pack=True)
 

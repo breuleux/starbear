@@ -23,7 +23,7 @@ from starlette.websockets import WebSocketDisconnect
 from .page import Page
 from .repr import Representer
 from .template import template
-from .utils import keyword_decorator
+from .utils import Queue, keyword_decorator
 from .wrap import with_error_display
 
 here = Path(__file__).parent
@@ -46,14 +46,6 @@ def _(page, selector):
     return page[selector]
 
 
-class Queue2(aio.Queue):
-    def putleft(self, entry):
-        self._queue.appendleft(entry)
-        self._unfinished_tasks += 1
-        self._finished.clear()
-        self._wakeup_next(self._getters)
-
-
 class Cub:
     def __init__(self, mother, process, query_params={}, session={}):
         self.mother = mother
@@ -64,8 +56,8 @@ class Cub:
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
         self.methods = {}
         self.representer = Representer(self.route)
-        self.iq = aio.Queue()
-        self.oq = Queue2()
+        self.iq = Queue()
+        self.oq = Queue()
         self.history = []
         self.reset = False
         self.ws = None
