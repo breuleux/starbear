@@ -54,7 +54,6 @@ class Cub:
         self.query_params = query_params
         self.session = session
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
-        self.methods = {}
         self.representer = Representer(self.route)
         self.iq = Queue()
         self.oq = Queue()
@@ -197,6 +196,20 @@ class Cub:
         )
         return JSONResponse({"status": "ok"})
 
+    async def route_file(self, request):
+        pth = self.representer.file_registry.get_file_from_url(
+            request.path_params["path"]
+        )
+        if pth is None:
+            raise HTTPException(
+                status_code=404, detail="File not found or not available."
+            )
+        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
+
+    async def route_vfile(self, request):
+        vf = self.representer.vfile_registry.get(request.path_params["path"])
+        return Response(content=vf.content, media_type=vf.type)
+
 
 def get_process_from_request(request):
     process_base = request.path_params.get("process", None)
@@ -205,11 +218,13 @@ def get_process_from_request(request):
     return process_base
 
 
-def forward_cub(fn):
+@keyword_decorator
+def forward_cub(fn, ensure=False):
     @wraps(fn)
     async def fwd(self, request):
+        self._ensure_router(request)
         process = get_process_from_request(request)
-        cub = self._get(process, query_params=request.query_params)
+        cub = self._get(process, query_params=request.query_params, ensure=ensure)
         if cub is None:
             print(f"Trying to access missing process: {process}")
             return JSONResponse({"missing": process}, status_code=404)
@@ -275,42 +290,32 @@ class MotherBear:
             process, query_params=request.query_params, ensure=True
         ).route_main(request)
 
+    @forward_cub(ensure=True)
+    async def route_main(self, request, cub):
+        return await cub.route_main(request)
+
     @forward_cub
     async def route_socket(self, ws, cub):
-        self._ensure_router(ws)
         return await cub.route_socket(ws)
 
     @forward_cub
     async def route_method(self, request, cub):
-        self._ensure_router(request)
         return await cub.route_method(request)
 
     @forward_cub
     async def route_file(self, request, cub):
-        self._ensure_router(request)
-        pth = cub.representer.file_registry.get_file_from_url(
-            request.path_params["path"]
-        )
-        if pth is None:
-            raise HTTPException(
-                status_code=404, detail="File not found or not available."
-            )
-        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
+        return await cub.route_file(request)
 
     @forward_cub
     async def route_vfile(self, request, cub):
-        self._ensure_router(request)
-        vf = cub.representer.vfile_registry.get(request.path_params["path"])
-        return Response(content=vf.content, media_type=vf.type)
+        return await cub.route_vfile(request)
 
     @forward_cub
     async def route_post(self, request, cub):
-        self._ensure_router(request)
         return await cub.route_post(request)
 
     @forward_cub
     async def route_queue(self, request, cub):
-        self._ensure_router(request)
         return await cub.route_queue(request)
 
     def _mangle(self, name):
