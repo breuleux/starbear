@@ -23,7 +23,7 @@ from starlette.websockets import WebSocketDisconnect
 from .page import Page
 from .repr import Representer
 from .template import template
-from .utils import Queue, keyword_decorator
+from .utils import Queue, keyword_decorator, logger
 from .wrap import with_error_display
 
 here = Path(__file__).parent
@@ -69,13 +69,21 @@ class Cub:
         )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
+        self.log("info", "Created process")
+
+    def log(self, level, msg):
+        try:
+            user = self.session.get("user", {}).get("email", None)
+        except:
+            logger.error("Could not get user")
+        getattr(logger, level)(msg, extra={"proc": self.process, "user": user})
 
     def schedule_selfdestruct(self):
         async def sd():
             await aio.sleep(self.mother.process_timeout)
             del self.mother.cubs[self.process]
             self.coro.cancel()
-            print(f"Destroyed process: {self.process}")
+            self.log("info", "Destroyed process")
 
         if self.mother.process_timeout is not None:
             self._sd_coro = aio.create_task(sd())
@@ -90,7 +98,10 @@ class Cub:
             await self.fn(self.page)
             await self.page.sync()
         except Exception as exc:
-            traceback.print_exc()
+            self.log("error", "Error in process")
+            logger.error(traceback.format_exc())
+        finally:
+            self.log("info", "Finished process")
 
     def _object_hook(self, dct):
         if "%" in dct:
@@ -124,7 +135,6 @@ class Cub:
                     self.iq.put_nowait(data)
                 except WebSocketDisconnect:
                     break
-            print("recv stopped")
 
         async def send():
             while True:
@@ -137,7 +147,6 @@ class Cub:
                     # Put the unsent element back into the queue
                     self.oq.putleft((txt, in_history))
                     break
-            print("send stopped")
 
         if self.ws:
             try:
@@ -226,7 +235,7 @@ def forward_cub(fn, ensure=False):
         process = get_process_from_request(request)
         cub = self._get(process, query_params=request.query_params, ensure=ensure)
         if cub is None:
-            print(f"Trying to access missing process: {process}")
+            logger.warning(f"Trying to access missing process: {process}")
             return JSONResponse({"missing": process}, status_code=404)
         else:
             return await fn(self, request, cub)
@@ -247,7 +256,6 @@ class MotherBear:
     def _get(self, proc, query_params={}, session={}, ensure=False):
         if proc not in self.cubs:
             if ensure:
-                print(f"Creating process: {proc}")
                 self.cubs[proc] = Cub(
                     self, proc, query_params=query_params, session=session
                 )
