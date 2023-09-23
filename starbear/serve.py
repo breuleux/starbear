@@ -23,7 +23,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from .page import Page
 from .repr import Representer
-from .template import template
+from .templating import template
 from .utils import Queue, keyword_decorator, logger
 from .wrap import with_error_display
 
