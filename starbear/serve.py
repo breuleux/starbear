@@ -66,6 +66,7 @@ def routeinfo(params="", path=None, cls=Route, **kw):
 class BasicBear:
     def __init__(self, fn):
         self.fn = fn
+        self.__doc__ = getattr(fn, "__doc__", None)
         self.appid = next(_count)
         self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
         self.router = None
@@ -424,7 +425,7 @@ def forward_cub(fn, ensure=False):
 class MotherBear:
     def __init__(self, fn, process_timeout=60, hide_processes=True):
         self.fn = fn
-        self.doc = getattr(fn, "__doc__", None)
+        self.__doc__ = getattr(fn, "__doc__", None)
         self.router = None
         self.process_timeout = process_timeout
         self.hide_processes = hide_processes
