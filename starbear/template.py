@@ -110,7 +110,9 @@ _cached_templates = {}
 
 class Template:
     def __init__(self, tpl):
-        if isinstance(tpl, (str, Path)):
+        if isinstance(tpl, Tag):
+            self.template = tpl
+        elif isinstance(tpl, (str, Path)):
             tpl = _parse_template(tpl)
         self.template = tpl
 
@@ -120,6 +122,8 @@ class Template:
 
 
 def template(tpl, nocache=False, /, **values):
+    if isinstance(tpl, Tag):
+        return Template(tpl)(**values)
     if tpl not in _cached_templates or nocache:
         _cached_templates[tpl] = Template(tpl)
     return _cached_templates[tpl](**values)
