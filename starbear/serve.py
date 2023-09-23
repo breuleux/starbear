@@ -14,6 +14,7 @@ from starlette.responses import (
     FileResponse,
     HTMLResponse,
     JSONResponse,
+    PlainTextResponse,
     RedirectResponse,
     Response,
 )
@@ -44,6 +45,183 @@ def register_constructor(key):
 @register_constructor("HTMLElement")
 def _(page, selector):
     return page[selector]
+
+
+def routeinfo(params="", path=None, cls=Route, **kw):
+    def deco(method):
+        assert method.__name__.startswith("route_")
+        name = method.__name__.removeprefix("route_")
+        method.routeinfo = {
+            "cls": cls,
+            "name": name,
+            "path": path or f"/{name}",
+            "params": params,
+            "keywords": kw,
+        }
+        return method
+
+    return deco
+
+
+class BasicBear:
+    def __init__(self, fn):
+        self.fn = fn
+        self.appid = next(_count)
+        self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
+        self.router = None
+        self.route = None
+        self.representer = None
+
+    ###########
+    # Methods #
+    ###########
+
+    def path_for(self, name, **kwargs):
+        return self.router.url_path_for(self._mangle(name), **kwargs)
+
+    def object_hook(self, dct):
+        return dct
+
+    async def json(self, request):
+        body = await request.body()
+        if isinstance(body, bytes):
+            body = body.decode(encoding="utf8")
+        return self._json_decoder.decode(body)
+
+    ####################
+    # Route generation #
+    ####################
+
+    def ensure_representer(self, request):
+        router = request.scope["router"]
+        if self.router is None:
+            self.router = router
+        else:
+            assert self.router is router
+        if self.representer is None:
+            self.route = self.path_for("main").rstrip("/")
+            self.representer = Representer(self.route)
+
+    def wrap_route(self, method):
+        @wraps(method)
+        async def wrapped(request):
+            self.ensure_representer(request)
+            return await method(request)
+
+        return wrapped
+
+    def _mangle(self, name):
+        return f"app{self.appid}_{name}"
+
+    def _autoroutes(self):
+        routes = []
+        for method_name in dir(self):
+            if method_name.startswith("route_"):
+                method = getattr(self, method_name)
+                routeinfo = method.routeinfo
+
+                route = routeinfo["cls"](
+                    routeinfo["path"] + routeinfo["params"],
+                    self.wrap_route(method),
+                    name=self._mangle(routeinfo["name"]),
+                    **routeinfo["keywords"],
+                )
+                routes.append(route)
+        return routes
+
+    def routes(self):
+        return self._autoroutes()
+
+    ##############################
+    # For standalone application #
+    ##############################
+
+    @cached_property
+    def _mnt(self):
+        return Mount("/", routes=self.routes())
+
+    async def __call__(self, scope, receive, send):
+        await self._mnt.handle(scope, receive, send)
+
+    ################
+    # Basic routes #
+    ################
+
+    @routeinfo("/{method:int}", methods=["GET", "POST"])
+    async def route_method(self, request):
+        method_id = request.path_params["method"]
+        method = self.representer.callback_registry.resolve(method_id)
+        try:
+            args = await self.json(request)
+        except json.JSONDecodeError:
+            args = [await request.body()]
+        result = method(*args, **request.query_params)
+        if inspect.iscoroutine(result):
+            result = await result
+        if isinstance(result, Tag):
+            return HTMLResponse(self.representer(result))
+        else:
+            return JSONResponse(result)
+
+    @routeinfo(methods=["POST"])
+    async def route_post(self, request):
+        data = await self.json(request)
+        if "error" in data:
+            self.representer.future_registry.reject(
+                fid=data["reqid"],
+                error=data["error"],
+            )
+        else:
+            self.representer.future_registry.resolve(
+                fid=data["reqid"],
+                value=data.get("value", None),
+            )
+        return JSONResponse({"status": "ok"})
+
+    @routeinfo(methods=["POST"])
+    async def route_queue(self, request):
+        data = await self.json(request)
+        self.representer.queue_registry.put(
+            qid=data["reqid"],
+            value=data["value"],
+        )
+        return JSONResponse({"status": "ok"})
+
+    @routeinfo("/{path:path}")
+    async def route_file(self, request):
+        pth = self.representer.file_registry.get_file_from_url(
+            request.path_params["path"]
+        )
+        if pth is None:
+            raise HTTPException(
+                status_code=404, detail="File not found or not available."
+            )
+        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
+
+    @routeinfo("/{path:path}")
+    async def route_vfile(self, request):
+        vf = self.representer.vfile_registry.get(request.path_params["path"])
+        return Response(content=vf.content, media_type=vf.type)
+
+
+class LoneBear(BasicBear):
+    @routeinfo(path="/")
+    async def route_main(self, request):
+        response = await self.fn(request)
+        if isinstance(response, Tag):
+            if response.name != "html":
+                response = template(
+                    here / "bare-template.html",
+                    body=response,
+                    route=self.route,
+                    _asset=lambda name: here / name,
+                )
+            html = self.representer.generate_string(response)
+            return HTMLResponse(html)
+        elif isinstance(response, dict):
+            return JSONResponse(response)
+        else:
+            return PlainTextResponse(str(response))
 
 
 class Cub:
@@ -291,13 +469,6 @@ class MotherBear:
                 url = f"{url}?{request.query_params}"
             return RedirectResponse(url=url)
 
-    async def route_main(self, request):
-        self._ensure_router(request)
-        process = get_process_from_request(request)
-        return await self._get(
-            process, query_params=request.query_params, ensure=True
-        ).route_main(request)
-
     @forward_cub(ensure=True)
     async def route_main(self, request, cub):
         return await cub.route_main(request)
@@ -366,3 +537,7 @@ def bear(fn, display_errors=True, **kwargs):
     if display_errors:
         fn = with_error_display(fn)
     return MotherBear(fn, **kwargs)
+
+
+def simplebear(fn, **kwargs):
+    return LoneBear(fn, **kwargs)
