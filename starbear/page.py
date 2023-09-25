@@ -16,6 +16,7 @@ class Page:
         session={},
         track_history=True,
         sent_resources=None,
+        app=None,
         loop=None,
     ):
         self.iq = iq
@@ -27,6 +28,7 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
+        self.app = app
         self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
 

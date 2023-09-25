@@ -245,6 +245,7 @@ class Cub:
             representer=self.representer,
             query_params=query_params,
             session=session,
+            app=mother.app,
         )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
@@ -449,6 +450,7 @@ class MotherBear:
         router = request.scope["router"]
         if self.router is None:
             self.router = router
+            self.app = request.scope["app"]
         else:
             assert self.router is router
 
