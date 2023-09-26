@@ -462,7 +462,7 @@ class MotherBear:
         router = request.scope["router"]
         if self.router is None:
             self.router = router
-            self.app = request.scope["app"]
+            self.app = request.scope.get("app", None)
         else:
             assert self.router is router
 
