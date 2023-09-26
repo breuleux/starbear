@@ -12,6 +12,7 @@ starlette = ">=0.31.0"
 websockets = "^10.3"
 hrepr = "^0.6.0"
 lxml = "^4.9.3"
+html5lib = "^1.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.8.0"
