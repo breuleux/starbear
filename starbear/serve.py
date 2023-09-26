@@ -47,14 +47,15 @@ def _(page, selector):
     return page[selector]
 
 
-def routeinfo(params="", path=None, cls=Route, **kw):
+def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     def deco(method):
         assert method.__name__.startswith("route_")
         name = method.__name__.removeprefix("route_")
         method.routeinfo = {
             "cls": cls,
             "name": name,
-            "path": path or f"/{name}",
+            "path": path or f"/!/{name}",
+            "root": root,
             "params": params,
             "keywords": kw,
         }
@@ -121,13 +122,24 @@ class BasicBear:
                 method = getattr(self, method_name)
                 routeinfo = method.routeinfo
 
+                wmeth = self.wrap_route(method)
+                mname = self._mangle(routeinfo["name"])
                 route = routeinfo["cls"](
                     routeinfo["path"] + routeinfo["params"],
-                    self.wrap_route(method),
-                    name=self._mangle(routeinfo["name"]),
+                    wmeth,
+                    name=mname,
                     **routeinfo["keywords"],
                 )
                 routes.append(route)
+
+                if routeinfo["root"]:
+                    route = routeinfo["cls"](
+                        "/",
+                        wmeth,
+                        name=mname,
+                        **routeinfo["keywords"],
+                    )
+                    routes.append(route)
         return routes
 
     def routes(self):
@@ -206,7 +218,7 @@ class BasicBear:
 
 
 class LoneBear(BasicBear):
-    @routeinfo(path="/")
+    @routeinfo(path="/!", root=True)
     async def route_main(self, request):
         response = await self.fn(request)
         if isinstance(response, Tag):
@@ -514,17 +526,17 @@ class MotherBear:
     def routes(self):
         return [
             self._make_route("dispatch", "/"),
-            self._make_route("main", "/{process:str}/"),
+            self._make_route("main", "/!{process:str}/"),
             self._make_route(
                 "method",
-                "/{process:str}/method/{method:int}",
+                "/!{process:str}/method/{method:int}",
                 methods=["GET", "POST"],
             ),
-            self._make_route("file", "/{process:str}/file/{path:path}"),
-            self._make_route("vfile", "/{process:str}/vfile/{path:path}"),
-            self._make_route("post", "/{process:str}/post", methods=["POST"]),
-            self._make_route("queue", "/{process:str}/queue", methods=["POST"]),
-            self._make_route("socket", "/{process:str}/socket", cls=WebSocketRoute),
+            self._make_route("file", "/!{process:str}/file/{path:path}"),
+            self._make_route("vfile", "/!{process:str}/vfile/{path:path}"),
+            self._make_route("post", "/!{process:str}/post", methods=["POST"]),
+            self._make_route("queue", "/!{process:str}/queue", methods=["POST"]),
+            self._make_route("socket", "/!{process:str}/socket", cls=WebSocketRoute),
         ]
 
     @cached_property
