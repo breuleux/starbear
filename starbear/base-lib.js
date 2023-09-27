@@ -16,8 +16,16 @@ HTMLElement.prototype.toJSON = function () {
 
 HTMLFormControlsCollection.prototype.toJSON = function (event) {
     const results = {};
-    for (let [_, v] of Object.entries(this)) {
-        results[v.name] = v.type === "checkbox" ? v.checked : v.value;
+    for (let [k, v] of Object.entries(this)) {
+        if (isNaN(k)) {
+            // Non-numeric key
+            results[k] = v.type === "checkbox" ? v.checked : v.value;
+        }
+        else if (v.name) {
+            let name = v.name;
+            v = this[v.name];
+            results[name] = v.type === "checkbox" ? v.checked : v.value;
+        }
     }
     event = event || window.event
     results.$submit = (event && event.type == "submit");
