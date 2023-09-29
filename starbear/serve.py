@@ -19,7 +19,7 @@ from starlette.responses import (
     Response,
 )
 from starlette.routing import Mount, Route, WebSocketRoute
-from starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .page import Page
 from .repr import Representer
@@ -428,6 +428,8 @@ def forward_cub(fn, ensure=False):
         cub = self._get(process, query_params=request.query_params, ensure=ensure)
         if cub is None:
             logger.warning(f"Trying to access missing process: {process}")
+            if isinstance(request, WebSocket):
+                await request.close()
             return JSONResponse({"missing": process}, status_code=404)
         else:
             return await fn(self, request, cub)
