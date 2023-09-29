@@ -263,12 +263,12 @@ class Cub:
         self._sd_coro = None
         self.log("info", "Created process")
 
-    def log(self, level, msg):
+    def log(self, level, msg, **extra):
         try:
             user = self.session.get("user", {}).get("email", None)
         except:
             logger.error("Could not get user")
-        getattr(logger, level)(msg, extra={"proc": self.process, "user": user})
+        getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
 
     def schedule_selfdestruct(self):
         async def sd():
@@ -290,8 +290,7 @@ class Cub:
             await self.fn(self.page)
             await self.page.sync()
         except Exception as exc:
-            self.log("error", "Error in process")
-            logger.error(traceback.format_exc())
+            self.log("error", str(exc), traceback=traceback)
         finally:
             self.log("info", "Finished process")
 

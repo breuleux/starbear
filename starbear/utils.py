@@ -2,6 +2,7 @@ import asyncio
 import functools
 import logging
 import sys
+import traceback
 from dataclasses import dataclass
 from hashlib import md5
 from mimetypes import guess_type
@@ -14,6 +15,7 @@ class StarbearHandler(logging.StreamHandler):
 
         process = getattr(record, "proc", None)
         user = getattr(record, "user", None)
+        tb = getattr(record, "traceback", None)
         colors = {
             "INFO": "32",
             "WARNING": "33",
@@ -21,12 +23,14 @@ class StarbearHandler(logging.StreamHandler):
         }
         color = colors.get(record.levelname, "95")
         prefix = f"\033[{color}m{record.levelname}\033[0m:   {_brack(record.name)}{_brack(process)}{_brack(user)}"
-        if "\n" in record.msg:
-            lines = [f"\033[{color}m>\033[0m {line}" for line in record.msg.split("\n")]
-            lines = "\n".join(lines)
-            return f"{prefix}\n{lines}"
+        msg = record.msg
+        if tb:
+            msg += "\n" + traceback.format_exc()
+        if "\n" in msg:
+            lines = f"\n\033[{color}m>\033[0m ".join(msg.split("\n"))
+            return f"{prefix} {lines}"
         else:
-            return f"{prefix} {record.msg}"
+            return f"{prefix} {msg}"
 
 
 logger = logging.getLogger("starbear")
