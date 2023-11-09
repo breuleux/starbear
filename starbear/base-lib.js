@@ -195,6 +195,7 @@ function $$BEAR_WRAP(func, options) {
             while (!(element.tagName === "FORM") && (element = element.parentNode)) {
             }
             const form = element ? element.elements.toJSON(event) : {};
+            form.$target = element.toJSON();
             return f(form);
         }
     }
