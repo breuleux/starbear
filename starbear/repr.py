@@ -185,12 +185,12 @@ class Representer:
             if attr.startswith("hx_"):
                 return f"{route}/method/{method_id}"
             else:
-                return f"$$BEAR_EVENT($$BEAR_FUNC({method_id}))"
+                return f"$$BEAR_EVENT.call(this, $$BEAR_FUNC({method_id}))"
 
         @attr_embed.register
         def attr_embed(self, attr: str, queue: Queue):
             qid = queue_registry.register(queue)
-            return f"$$BEAR_EVENT($$BEAR_QUEUE({qid}))"
+            return f"$$BEAR_EVENT.call(this, $$BEAR_QUEUE({qid}))"
 
         @attr_embed.register
         def attr_embed(self, attr: str, pth: Path):

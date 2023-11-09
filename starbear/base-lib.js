@@ -186,7 +186,7 @@ function $$BEAR_EVENT(func) {
     let evt = window.event;
     evt.preventDefault();
     evt.stopPropagation();
-    func(evt);
+    func.call(this, evt);
 }
 
 
@@ -194,24 +194,24 @@ function $$BEAR_WRAP(func, options) {
     const id = options.id;
 
     function debounce(f, timeout) {
-        return (...args) => {
+        return function (...args) {
             clearTimeout($$_BEAR_TIMERS[id]);
             $$_BEAR_TIMERS[id] = setTimeout(
-                () => { f(...args); },
+                () => { f.call(this, ...args); },
                 timeout,
             );
         };
     }
 
     function nodebounce(f) {
-        return (...args) => {
+        return function (...args) {
             clearTimeout($$_BEAR_TIMERS[id]);
-            f(...args);
+            f.call(this, ...args);
         };
     }
 
     function extract(f, extractors) {
-        return arg => {
+        return function (arg) {
             const args = [];
             for (const extractor of extractors) {
                 let value = arg;
@@ -220,28 +220,32 @@ function $$BEAR_WRAP(func, options) {
                 }
                 args.push(value);
             }
-            return f(...args);
+            return f.call(this, ...args);
         }
     }
 
     function getform(f) {
-        return event => {
+        return function (event) {
             // TODO: proper error when this is not an event
             let element = event.target;
             while (!(element.tagName === "FORM") && (element = element.parentNode)) {
             }
             const form = element ? element.elements.toJSON(event) : {};
             form.$target = element.toJSON();
-            return f(form);
+            return f.call(this, form);
         }
     }
 
     function part(f, pre_args) {
-        return (...post_args) => f(...pre_args, ...post_args)
+        return function (...post_args) {
+            return f.call(this, ...pre_args, ...post_args)
+        }
     }
 
     function pack(f) {
-        return (...args) => f(args)
+        return function (...args) {
+            return f.call(this, args)
+        }
     }
 
     if (options.pack) {
