@@ -1,5 +1,7 @@
 
 var $_autoid = 0
+var $$_BEAR_TIMERS = {};
+var $$_BEAR_LOCAL_PROMISES = {};
 
 
 HTMLElement.prototype.toJSON = function () {
@@ -127,18 +129,55 @@ class $$BEAR_PROMISE {
 }
 
 
-function $$BEAR_QUEUE(id) {
+class $$BEAR_LOCAL_PROMISE {
+    constructor() {
+        this.id = ++$_autoid;
+        this.promise = new Promise(
+            (resolve, reject) => {
+                this.resolve = resolve;
+                this.reject = reject;
+            }
+        );
+        $$_BEAR_LOCAL_PROMISES[this.id] = this;
+    }
+
+    toJSON() {
+        return {"%": "Promise", id: this.id};
+    }
+}
+
+
+function $$BEAR_RESOLVE_LOCAL_PROMISE(pid, value) {
+    let promise = $$_BEAR_LOCAL_PROMISES[pid];
+    $$_BEAR_LOCAL_PROMISES[pid] = undefined;
+    promise.resolve(value);
+}
+
+
+function $$BEAR_QUEUE(id, feedback = false) {
     return async value => {
-        return await fetch(`${BEAR_ROUTE}/queue`, {
+        let qvalue = value
+        let promise = null;
+        if (feedback) {
+            promise = new $$BEAR_LOCAL_PROMISE();
+            qvalue = [value, promise];
+        }
+        let response = await fetch(`${BEAR_ROUTE}/queue`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 reqid: id,
-                value: value,
+                value: qvalue,
             })
         })
+        if (feedback) {
+            return await promise.promise;
+        }
+        else {
+            return response;
+        }
     }
 }
 
@@ -149,9 +188,6 @@ function $$BEAR_EVENT(func) {
     evt.stopPropagation();
     func(evt);
 }
-
-
-$$_BEAR_TIMERS = {};
 
 
 function $$BEAR_WRAP(func, options) {

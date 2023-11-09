@@ -10,7 +10,7 @@ from typing import Union
 from hrepr import embed, hrepr, standard_html
 from ovld import has_attribute
 
-from .utils import VirtualFile
+from .utils import FeedbackQueue, VirtualFile
 
 
 class CallbackRegistry:
@@ -169,6 +169,11 @@ class Representer:
         def js_embed(self, queue: Queue):
             qid = queue_registry.register(queue)
             return f"$$BEAR_QUEUE({qid})"
+
+        @js_embed.register
+        def js_embed(self, queue: FeedbackQueue):
+            qid = queue_registry.register(queue)
+            return f"$$BEAR_QUEUE({qid}, true)"
 
         @js_embed.register
         def js_embed(self, obj: has_attribute("__js_embed__")):

@@ -80,6 +80,10 @@ class Queue(asyncio.Queue):
         return await self.get()
 
 
+class FeedbackQueue(Queue):
+    pass
+
+
 class VirtualFile:
     def __init__(self, content, type=None, name=None):
         if type is None:

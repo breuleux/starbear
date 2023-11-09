@@ -47,6 +47,14 @@ def _(page, selector):
     return page[selector]
 
 
+@register_constructor("Promise")
+def _(page, id):
+    async def resolve(value):
+        await getattr(page.js, "$$BEAR_RESOLVE_LOCAL_PROMISE")(id, value)
+
+    return resolve
+
+
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     def deco(method):
         assert method.__name__.startswith("route_")
