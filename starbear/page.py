@@ -149,6 +149,13 @@ class Page:
             ),
         )
 
+    def __js_embed__(self, representer):
+        if self.selector is None:
+            raise Exception(
+                "Cannot send page reference to JS because it has no selector."
+            )
+        return f"document.querySelector('{self.selector}')"
+
     async def recv(self):
         return await self.iq.get()
 
@@ -170,22 +177,27 @@ def _extractor(sequence):
 
 
 class JavaScriptOperation:
-    def __init__(self, element, sequence):
+    def __init__(self, element, sequence, selector=None):
         self.__element = element
         self.__sequence = sequence
         self.__future = aio.Future()
+        self.__selector = (
+            False if selector is False else (selector or self.__element.selector)
+        )
 
     def __getattr__(self, attr):
-        return type(self)(self.__element, [*self.__sequence, attr])
+        return type(self)(self.__element, [*self.__sequence, attr], self.__selector)
+
+    __getitem__ = __getattr__
 
     def __call__(self, *args):
-        return type(self)(self.__element, [*self.__sequence, args])
+        return type(self)(self.__element, [*self.__sequence, args], self.__selector)
 
     def __await__(self):
         self.__element.page_select("body").without_history().print(
             H.script(
                 call_template.format(
-                    selector=Resource(self.__element.selector),
+                    selector=Resource(self.__selector or None),
                     extractor=_extractor(self.__sequence),
                     future=Resource(self.__future),
                 )
