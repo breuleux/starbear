@@ -31,6 +31,7 @@ class Page:
         self.app = app
         self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
+        self.window = JavaScriptOperation(self, [], False)
 
     def __getitem__(self, selector):
         def _map_selector(x):
@@ -150,8 +151,7 @@ class Page:
         )
 
     def toggle(self, toggle, value=None):
-        js = JavaScriptOperation(self, [], False)
-        return js["$$BEAR_TOGGLE"](self, toggle, value)
+        return self.window["$$BEAR_TOGGLE"](self, toggle, value)
 
     def __js_embed__(self, representer):
         if self.selector is None:
