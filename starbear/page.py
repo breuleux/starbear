@@ -149,6 +149,10 @@ class Page:
             ),
         )
 
+    def toggle(self, toggle, value=None):
+        js = JavaScriptOperation(self, [], False)
+        return js["$$BEAR_TOGGLE"](self, toggle, value)
+
     def __js_embed__(self, representer):
         if self.selector is None:
             raise Exception(

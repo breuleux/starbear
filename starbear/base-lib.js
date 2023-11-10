@@ -190,6 +190,36 @@ function $$BEAR_EVENT(func) {
 }
 
 
+function $$BEAR_TOGGLE(element, toggle, value = null) {
+    console.log(element);
+    let not_toggle = `not-${toggle}`
+    let hasyes = e => e.classList.contains(toggle);
+    let hasno = e => e.classList.contains(not_toggle);
+    let hasit = e => hasyes(e) || hasno(e);
+
+    let current = element;
+    while (!hasit(current) && (current = current.parentNode)) {
+    }
+    if (!current) {
+        return;
+    }
+    else {
+        if (value === null) {
+            current.classList.toggle(toggle);
+            current.classList.toggle(not_toggle);
+        }
+        else if (value) {
+            current.classList.add(toggle);
+            current.classList.remove(not_toggle);
+        }
+        else {
+            current.classList.remove(toggle);
+            current.classList.add(not_toggle);
+        }
+    }
+}
+
+
 function $$BEAR_WRAP(func, options) {
     const id = options.id;
 
@@ -248,6 +278,21 @@ function $$BEAR_WRAP(func, options) {
         }
     }
 
+    function run_toggles(f, toggles) {
+        return async function (...args) {
+            for (let toggle of toggles) {
+                $$BEAR_TOGGLE(this, toggle, true);
+            }
+            let result = f.call(this, ...args);
+            if (result instanceof Promise) {
+                await result;
+                for (let toggle of toggles) {
+                    $$BEAR_TOGGLE(this, toggle, false);
+                }
+            }
+        }
+    }
+
     if (options.pack) {
         func = pack(func);
     }
@@ -264,6 +309,14 @@ function $$BEAR_WRAP(func, options) {
     }
     if (options.form) {
         func = getform(func);
+    }
+    if (options.toggles) {
+        let toggles = (
+            (typeof options.toggles === "string")
+            ? [options.toggles]
+            : options.toggles
+        );
+        func = run_toggles(func, toggles);
     }
     if (options.debounce) {
         func = debounce(func, options.debounce * 1000);

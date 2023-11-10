@@ -105,6 +105,7 @@ class ClientWrap:
         "form": False,
         "pack": False,
         "partial": None,
+        "toggles": None,
     }
 
     def __init__(self, func, **options):
