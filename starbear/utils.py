@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from hashlib import md5
 from mimetypes import guess_type
 
+from hrepr.resource import JSExpression
+
 
 class StarbearHandler(logging.StreamHandler):
     def format(self, record):
@@ -106,6 +108,8 @@ class ClientWrap:
         "pack": False,
         "partial": None,
         "toggles": None,
+        "pre": None,
+        "post": None,
     }
 
     def __init__(self, func, **options):
@@ -127,6 +131,19 @@ class ClientWrap:
             options["partial"] = [partial]
 
         options["id"] = id(func)
+
+        for x in ["pre", "post"]:
+            result = options.get(x, None)
+            if result is not None:
+                if not isinstance(result, (list, tuple)):
+                    result = [result]
+                result = [
+                    JSExpression(f"function (result) {{ {p} }}")
+                    if isinstance(p, str)
+                    else p
+                    for p in result
+                ]
+            options[x] = result
 
         self.func = func
         self.options = options

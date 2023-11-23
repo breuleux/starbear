@@ -191,7 +191,6 @@ function $$BEAR_EVENT(func) {
 
 
 function $$BEAR_TOGGLE(element, toggle, value = null) {
-    console.log(element);
     let not_toggle = `not-${toggle}`
     let hasyes = e => e.classList.contains(toggle);
     let hasno = e => e.classList.contains(not_toggle);
@@ -278,19 +277,33 @@ function $$BEAR_WRAP(func, options) {
         }
     }
 
-    function run_toggles(f, toggles) {
+    function prepost(f, pre, post) {
         return async function (...args) {
-            for (let toggle of toggles) {
-                $$BEAR_TOGGLE(this, toggle, true);
+            for (let pre_f of pre) {
+                pre_f.call(this);
             }
             let result = f.call(this, ...args);
             if (result instanceof Promise) {
-                await result;
-                for (let toggle of toggles) {
-                    $$BEAR_TOGGLE(this, toggle, false);
-                }
+                result = await result;
+            }
+            for (let post_f of post) {
+                post_f.call(this, result);
             }
         }
+    }
+
+    function run_toggles(f, toggles) {
+        function pre() {
+            for (let toggle of toggles) {
+                $$BEAR_TOGGLE(this, toggle, true);
+            }
+        }
+        function post(_) {
+            for (let toggle of toggles) {
+                $$BEAR_TOGGLE(this, toggle, false);
+            }
+        }
+        return prepost(f, [pre], [post]);
     }
 
     if (options.pack) {
@@ -317,6 +330,9 @@ function $$BEAR_WRAP(func, options) {
             : options.toggles
         );
         func = run_toggles(func, toggles);
+    }
+    if (options.pre || options.post) {
+        func = prepost(func, options.pre || [], options.post || []);
     }
     if (options.debounce) {
         func = debounce(func, options.debounce * 1000);
