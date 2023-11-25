@@ -8,7 +8,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = "^3.9"
 uvicorn = ">=0.17.6"
-starlette = ">=0.31.0"
+starlette = ">=0.27.0"
 websockets = "^10.3"
 hrepr = "^0.6.0"
 lxml = "^4.9.3"
