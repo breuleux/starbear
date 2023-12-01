@@ -1,5 +1,4 @@
 import weakref
-from asyncio import Future, Queue
 from collections import deque
 from hashlib import md5
 from itertools import count
@@ -141,6 +140,8 @@ class QueueRegistry:
 
 class Representer:
     def __init__(self, route):
+        from asyncio import Future, Queue
+
         representer = self
         callback_registry = self.callback_registry = CallbackRegistry(weak=False)
         file_registry = self.file_registry = FileRegistry()
