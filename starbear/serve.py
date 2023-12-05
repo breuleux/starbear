@@ -322,7 +322,14 @@ class Cub:
             _asset=lambda name: here / name,
         )
         self.reset = True
-        return HTMLResponse(self.representer.generate_string(node))
+        return HTMLResponse(
+            self.representer.generate_string(node),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     async def route_socket(self, ws):
         self.unschedule_selfdestruct()
