@@ -98,45 +98,51 @@ class Page:
         else:
             return self.representer.hrepr(x)
 
-    async def _put(self, element, method, history=None, send_resources=False):
-        if history is None:
-            history = self.track_history
+    def _generate_put_commands(self, element, method, send_resources=False):
         sel = self.selector or "body"
         parts, extra, resources = self.representer.generate(
             element, filter_resources=self.sent_resources if send_resources else None
         )
         if not resources.empty():
-            await self.page_select("head")._put(H.div(resources), "beforeend")
-        data = {
+            yield {
+                "command": "put",
+                "selector": "head",
+                "method": "beforeend",
+                "content": str(resources),
+            }
+        yield {
             "command": "put",
             "selector": sel,
             "method": method,
             "content": str(parts),
         }
-        result = await self.oq.put((data, history))
-        if extra:
-            data = {
+        if not extra.empty():
+            yield {
                 "command": "put",
                 "selector": sel,
                 "method": "beforeend",
                 "content": str(H.div(extra, style="display:none")),
             }
+
+    async def _put(self, element, method, history=None, send_resources=False):
+        if history is None:
+            history = self.track_history
+        for data in self._generate_put_commands(element, method, send_resources):
             await self.oq.put((data, history))
-        return result
 
     async def put(self, element, method, history=None):
         return await self._put(element, method, history=history, send_resources=True)
 
     def print(self, *elements, method="beforeend"):
         for element in elements:
-            element = H.div(self._to_element(element))
+            element = self._to_element(element)
             self._push(self.put(element, method))
 
     def print_html(self, html):
         self._push(self._put(H.div(H.raw(html)), "beforeend"))
 
     def set(self, element):
-        element = H.div(self._to_element(element))
+        element = self._to_element(element)
         self._push(self.put(element, "innerHTML"))
 
     def replace(self, element):
@@ -144,10 +150,10 @@ class Page:
         self._push(self.put(element, "outerHTML"))
 
     def clear(self):
-        self._push(self.put(H.span(), "innerHTML"))
+        self._push(self.put("", "innerHTML"))
 
     def delete(self):
-        self._push(self.put(H.span(), "outerHTML"))
+        self._push(self.put("", "outerHTML"))
 
     def do(self, js):
         self.page_select("body").without_history().print(

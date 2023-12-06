@@ -99,7 +99,9 @@ class BasicBear:
         return self._json_decoder.decode(body)
 
     def template_asset(self, name):
-        return self.route + "/file/" + self.representer.file_registry.register(here / name)
+        return (
+            self.route + "/file/" + self.representer.file_registry.register(here / name)
+        )
 
     ####################
     # Route generation #
@@ -282,7 +284,9 @@ class Cub:
         getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
 
     def template_asset(self, name):
-        return self.route + "/file/" + self.representer.file_registry.register(here / name)
+        return (
+            self.route + "/file/" + self.representer.file_registry.register(here / name)
+        )
 
     def schedule_selfdestruct(self):
         async def sd():
