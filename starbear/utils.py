@@ -157,7 +157,7 @@ class ClientWrap:
     def __js_embed__(self, representer):
         fn = representer.js_embed(self.func)
         options = representer.js_embed(self.options)
-        return f"$$BEAR_WRAP({fn}, {options})"
+        return f"$$BEAR.wrap({fn}, {options})"
 
     def __attr_embed__(self, representer, attr):
-        return f"$$BEAR_EVENT.call(this, {representer.js_embed(self)})"
+        return f"$$BEAR.event.call(this, {representer.js_embed(self)})"

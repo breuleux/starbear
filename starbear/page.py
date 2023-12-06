@@ -160,7 +160,7 @@ class Page:
         )
 
     def toggle(self, toggle, value=None):
-        return self.window["$$BEAR_TOGGLE"](self, toggle, value)
+        return self.window["$$BEAR"].toggle(self, toggle, value)
 
     def __js_embed__(self, representer):
         if self.selector is None:
@@ -173,7 +173,7 @@ class Page:
         return await self.iq.get()
 
 
-call_template = "$$BEAR_CB({selector}, {extractor}, {future});"
+call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
 
 
 def _extractor(sequence):

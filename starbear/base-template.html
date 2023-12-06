@@ -2,11 +2,11 @@
 <html>
     <head>
         <meta http-equiv="Content-type" content="text/html" charset="UTF-8" />
-        <script>BEAR_ROUTE = '{{route}}';</script>
-        <script src="{{asset:base-lib.js}}"></script>
         <script type="module">
-            import { connect } from "{{asset:bearlib.js}}";
-            connect("{{route}}/socket");
+            import { Starbear } from "{{asset:bearlib.js}}";
+            let bear = new Starbear("{{route}}");
+            window.$$BEAR = bear;
+            bear.connect();
         </script>
     </head>
     <body>

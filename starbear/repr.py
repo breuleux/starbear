@@ -154,7 +154,7 @@ class Representer:
         @embed.js_embed.variant
         def js_embed(self, fn: Union[MethodType, FunctionType]):
             method_id = callback_registry.register(fn)
-            return f"$$BEAR_FUNC({method_id})"
+            return f"$$BEAR.func({method_id})"
 
         @js_embed.register
         def js_embed(self, pth: Path):
@@ -164,17 +164,17 @@ class Representer:
         @js_embed.register
         def js_embed(self, future: Future):
             fid = future_registry.register(future)
-            return f"(new $$BEAR_PROMISE({fid}))"
+            return f"$$BEAR.promise({fid})"
 
         @js_embed.register
         def js_embed(self, queue: Queue):
             qid = queue_registry.register(queue)
-            return f"$$BEAR_QUEUE({qid})"
+            return f"$$BEAR.queue({qid})"
 
         @js_embed.register
         def js_embed(self, queue: FeedbackQueue):
             qid = queue_registry.register(queue)
-            return f"$$BEAR_QUEUE({qid}, true)"
+            return f"$$BEAR.queue({qid}, true)"
 
         @js_embed.register
         def js_embed(self, obj: has_attribute("__js_embed__")):
@@ -186,12 +186,12 @@ class Representer:
             if attr.startswith("hx_"):
                 return f"{route}/method/{method_id}"
             else:
-                return f"$$BEAR_EVENT.call(this, $$BEAR_FUNC({method_id}))"
+                return f"$$BEAR.event.call(this, $$BEAR.func({method_id}))"
 
         @attr_embed.register
         def attr_embed(self, attr: str, queue: Queue):
             qid = queue_registry.register(queue)
-            return f"$$BEAR_EVENT.call(this, $$BEAR_QUEUE({qid}))"
+            return f"$$BEAR.event.call(this, $$BEAR.queue({qid}))"
 
         @attr_embed.register
         def attr_embed(self, attr: str, pth: Path):

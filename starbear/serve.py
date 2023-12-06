@@ -50,7 +50,7 @@ def _(page, selector):
 @register_constructor("Promise")
 def _(page, id):
     async def resolve(value):
-        await getattr(page.js, "$$BEAR_RESOLVE_LOCAL_PROMISE")(id, value)
+        await getattr(page.js, "$$BEAR").resolveLocalPromise(id, value)
 
     return resolve
 
@@ -280,6 +280,9 @@ class Cub:
         except:
             logger.error("Could not get user")
         getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
+
+    def template_asset(self, name):
+        return self.route + "/file/" + self.representer.file_registry.register(here / name)
 
     def schedule_selfdestruct(self):
         async def sd():
