@@ -100,6 +100,15 @@ class Page:
 
     def _generate_put_commands(self, element, method, send_resources=False):
         sel = self.selector or "body"
+        if not element:
+            yield {
+                "command": "put",
+                "selector": sel,
+                "method": method,
+                "content": "",
+            }
+            return
+
         parts, extra, resources = self.representer.generate(
             element, filter_resources=self.sent_resources if send_resources else None
         )
@@ -124,45 +133,50 @@ class Page:
                 "content": str(H.div(extra, style="display:none")),
             }
 
-    async def _put(self, element, method, history=None, send_resources=False):
+    async def put(self, element, method, history=None, send_resources=True):
         if history is None:
             history = self.track_history
         for data in self._generate_put_commands(element, method, send_resources):
             await self.oq.put((data, history))
 
-    async def put(self, element, method, history=None):
-        return await self._put(element, method, history=history, send_resources=True)
+    def put_nowait(self, element, method, history=None, send_resources=True):
+        self._push(
+            self.put(element, method, history=history, send_resources=send_resources)
+        )
+
+    def queue_command(self, command, /, history=None, **arguments):
+        if history is None:
+            history = self.track_history
+        arguments["command"] = command
+        self._push(self.oq.put((arguments, history)))
 
     def print(self, *elements, method="beforeend"):
         for element in elements:
             element = self._to_element(element)
-            self._push(self.put(element, method))
+            self.put_nowait(element, method)
 
     def print_html(self, html, selector=None, method="beforeend", history=None):
-        if history is None:
-            history = self.track_history
-        sel = selector or self.selector or "body"
-        data = {
-            "command": "put",
-            "selector": sel,
-            "method": method,
-            "content": html,
-        }
-        self._push(self.oq.put((data, history)))
+        self.queue_command(
+            "put",
+            selector=selector or self.selector or "body",
+            method=method,
+            content=html,
+            history=history,
+        )
 
     def set(self, element):
         element = self._to_element(element)
-        self._push(self.put(element, "innerHTML"))
+        self.put_nowait(element, "innerHTML")
 
     def replace(self, element):
         element = self._to_element(element)
-        self._push(self.put(element, "outerHTML"))
+        self.put_nowait(element, "outerHTML")
 
     def clear(self):
-        self._push(self.put("", "innerHTML"))
+        self.put_nowait("", "innerHTML")
 
     def delete(self):
-        self._push(self.put("", "outerHTML"))
+        self.put_nowait("", "outerHTML")
 
     def do(self, js, future=None):
         call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
@@ -175,12 +189,7 @@ class Page:
             orig_code,
             self.representer.js_embed,
         )
-        data = {
-            "command": "eval",
-            "selector": self.selector,
-            "code": code,
-        }
-        self._push(self.oq.put((data, False)))
+        self.queue_command("eval", selector=self.selector, code=code, history=False)
 
     def toggle(self, toggle, value=None):
         return self.bearlib.toggle(self, toggle, value)
