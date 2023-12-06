@@ -98,6 +98,9 @@ class BasicBear:
             body = body.decode(encoding="utf8")
         return self._json_decoder.decode(body)
 
+    def template_asset(self, name):
+        return self.route + "/file/" + self.representer.file_registry.register(here / name)
+
     ####################
     # Route generation #
     ####################
@@ -235,7 +238,7 @@ class LoneBear(BasicBear):
                     here / "bare-template.html",
                     body=response,
                     route=self.route,
-                    _asset=lambda name: here / name,
+                    _asset=self.template_asset,
                 )
             html = self.representer.generate_string(response)
             return HTMLResponse(html)
@@ -319,7 +322,7 @@ class Cub:
         node = template(
             here / "base-template.html",
             route=self.route,
-            _asset=lambda name: here / name,
+            _asset=self.template_asset,
         )
         self.reset = True
         return HTMLResponse(
