@@ -136,8 +136,12 @@ class Page:
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:
             history = self.track_history
-        for data in self._generate_put_commands(element, method, send_resources):
-            await self.oq.put((data, history))
+        await self.oq.put(
+            (
+                list(self._generate_put_commands(element, method, send_resources)),
+                history,
+            )
+        )
 
     def put_nowait(self, element, method, history=None, send_resources=True):
         self._push(

@@ -187,12 +187,17 @@ class Socket {
 
     onmessage(event) {
         let data = JSON.parse(event.data);
-        let method = commands[data.command];
-        if (method !== undefined) {
-            method(data);
+        if (!Array.isArray(data)) {
+            data = [data];
         }
-        else {
-            console.log(`[socket] Cannot parse message: ${data}`);
+        for (const entry of data) {
+            let method = commands[entry.command];
+            if (method !== undefined) {
+                method(entry);
+            }
+            else {
+                console.log(`[socket] Cannot parse message: ${entry}`);
+            }
         }
     }
 
