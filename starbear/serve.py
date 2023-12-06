@@ -443,8 +443,10 @@ def forward_cub(fn, ensure=False):
         if cub is None:
             logger.warning(f"Trying to access missing process: {process}")
             if isinstance(request, WebSocket):
-                await request.close()
-            return JSONResponse({"missing": process}, status_code=404)
+                await request.accept()
+                await request.close(code=3002, reason="Missing application")
+            else:
+                return JSONResponse({"missing": process}, status_code=404)
         else:
             return await fn(self, request, cub)
 
