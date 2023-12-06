@@ -347,14 +347,14 @@ class Cub:
 
         async def send():
             while True:
-                txt, in_history = await self.oq.get()
+                obj, in_history = await self.oq.get()
                 try:
-                    await ws.send_text(txt)
+                    await ws.send_json(obj)
                     if in_history:
-                        self.history.append(txt)
+                        self.history.append(obj)
                 except RuntimeError:
                     # Put the unsent element back into the queue
-                    self.oq.putleft((txt, in_history))
+                    self.oq.putleft((obj, in_history))
                     break
 
         if self.ws:

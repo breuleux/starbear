@@ -101,18 +101,27 @@ class Page:
         if history is None:
             history = self.track_history
         sel = self.selector or "body"
-        element = element(hx_swap_oob=f"{method}:{sel}")
         parts, extra, resources = self.representer.generate(
             element, filter_resources=self.sent_resources if send_resources else None
         )
         if not resources.empty():
             await self.page_select("head")._put(H.div(resources), "beforeend")
-        to_send = str(parts)
+        data = {
+            "command": "put",
+            "selector": sel,
+            "method": method,
+            "content": str(parts),
+        }
+        result = await self.oq.put((data, history))
         if extra:
-            to_send += str(
-                H.div(extra, style="display:none", hx_swap_oob=f"beforeend:{sel}")
-            )
-        return await self.oq.put((to_send, history))
+            data = {
+                "command": "put",
+                "selector": sel,
+                "method": "beforeend",
+                "content": str(H.div(extra, style="display:none")),
+            }
+            await self.oq.put((data, history))
+        return result
 
     async def put(self, element, method, history=None):
         return await self._put(element, method, history=history, send_resources=True)

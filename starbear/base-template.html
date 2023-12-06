@@ -2,11 +2,13 @@
 <html>
     <head>
         <meta http-equiv="Content-type" content="text/html" charset="UTF-8" />
-        <script src="https://unpkg.com/htmx.org@1.7.0" integrity="sha384-EzBXYPt0/T6gxNp0nuPtLkmRpmDBbjg6WmCUZRLXBBwYYmwAUxzlSGej0ARHX0Bo" crossorigin="anonymous"></script>
-        <script src="https://unpkg.com/hyperscript.org@0.9.5"></script>
         <script>BEAR_ROUTE = '{{route}}';</script>
         <script src="{{asset:base-lib.js}}"></script>
+        <script type="module">
+            import { connect } from "{{asset:bearlib.js}}";
+            connect("{{route}}/socket");
+        </script>
     </head>
-    <body hx-ws="connect:{{route}}/socket">
+    <body>
     </body>
 </html>
