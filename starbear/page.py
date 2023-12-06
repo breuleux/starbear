@@ -31,8 +31,8 @@ class Page:
         self.app = app
         self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
-        self.window = JavaScriptOperation(self, [], False)
-        self.bearlib = self.window["$$BEAR"]
+        self.window = JavaScriptOperation(self, [], root="window")
+        self.bearlib = JavaScriptOperation(self, [], root="$$BEAR")
 
     def __getitem__(self, selector):
         def _map_selector(x):
@@ -138,8 +138,17 @@ class Page:
             element = self._to_element(element)
             self._push(self.put(element, method))
 
-    def print_html(self, html):
-        self._push(self._put(H.div(H.raw(html)), "beforeend"))
+    def print_html(self, html, selector=None, method="beforeend", history=None):
+        if history is None:
+            history = self.track_history
+        sel = selector or self.selector or "body"
+        data = {
+            "command": "put",
+            "selector": sel,
+            "method": method,
+            "content": html,
+        }
+        self._push(self.oq.put((data, history)))
 
     def set(self, element):
         element = self._to_element(element)
@@ -155,16 +164,23 @@ class Page:
     def delete(self):
         self._push(self.put("", "outerHTML"))
 
-    def do(self, js):
-        self.page_select("body").without_history().print(
-            H.script(
-                call_template.format(
-                    selector=Resource(self.selector),
-                    extractor=f"function () {{ {js} }}",
-                    future="null",
-                )
-            ),
+    def do(self, js, future=None):
+        call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
+        orig_code = call_template.format(
+            selector=Resource(self.selector),
+            extractor=f"function () {{ {js} }}",
+            future=Resource(future),
         )
+        code = self.representer.printer.expand_resources(
+            orig_code,
+            self.representer.js_embed,
+        )
+        data = {
+            "command": "eval",
+            "selector": self.selector,
+            "code": code,
+        }
+        self._push(self.oq.put((data, False)))
 
     def toggle(self, toggle, value=None):
         return self.bearlib.toggle(self, toggle, value)
@@ -180,11 +196,8 @@ class Page:
         return await self.iq.get()
 
 
-call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
-
-
-def _extractor(sequence):
-    result = "x"
+def _extractor(root, sequence):
+    result = root
     for entry in sequence:
         if isinstance(entry, str):
             result = f"{result}.{entry}"
@@ -193,34 +206,27 @@ def _extractor(sequence):
             result = f"{result}({args})"
         else:
             raise TypeError()
-    return f"(x => {result})"
+    return f"{{ return {result}; }}"
 
 
 class JavaScriptOperation:
-    def __init__(self, element, sequence, selector=None):
+    def __init__(self, element, sequence, root="this"):
         self.__element = element
         self.__sequence = sequence
         self.__future = aio.Future()
-        self.__selector = (
-            False if selector is False else (selector or self.__element.selector)
-        )
+        self.__root = root
 
     def __getattr__(self, attr):
-        return type(self)(self.__element, [*self.__sequence, attr], self.__selector)
+        return type(self)(self.__element, [*self.__sequence, attr], self.__root)
 
     __getitem__ = __getattr__
 
     def __call__(self, *args):
-        return type(self)(self.__element, [*self.__sequence, args], self.__selector)
+        return type(self)(self.__element, [*self.__sequence, args], self.__root)
 
     def __await__(self):
-        self.__element.page_select("body").without_history().print(
-            H.script(
-                call_template.format(
-                    selector=Resource(self.__selector or None),
-                    extractor=_extractor(self.__sequence),
-                    future=Resource(self.__future),
-                )
-            ),
+        self.__element.do(
+            _extractor(self.__root, self.__sequence),
+            future=self.__future,
         )
         return iter(self.__future)

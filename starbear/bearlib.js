@@ -308,17 +308,17 @@ export class Starbear {
 
     async cb(selector, extractor, promise) {
         let root = window;
-    
+
         if (selector) {
             root = document.querySelector(selector);
             if (root.__object) {
                 root = (await (root.__object));
             }
         }
-    
+
         if (promise) {
             try {
-                let result = await extractor(root);
+                let result = await extractor.call(root);
                 await promise.resolve(result);
             }
             catch (exc) {
@@ -404,7 +404,7 @@ export class Starbear {
         const id = options.id;
         const bear = this;
         const timers = this.timers;
-    
+
         function debounce(f, timeout) {
             return function (...args) {
                 clearTimeout(timers[id]);
@@ -414,14 +414,14 @@ export class Starbear {
                 );
             };
         }
-    
+
         function nodebounce(f) {
             return function (...args) {
                 clearTimeout(timers[id]);
-                f.call(this, ...args);
+                return f.call(this, ...args);
             };
         }
-    
+
         function extract(f, extractors) {
             return function (arg) {
                 const args = [];
@@ -435,7 +435,7 @@ export class Starbear {
                 return f.call(this, ...args);
             }
         }
-    
+
         function getform(f) {
             return function (event) {
                 // TODO: proper error when this is not an event
@@ -447,19 +447,19 @@ export class Starbear {
                 return f.call(this, form);
             }
         }
-    
+
         function part(f, pre_args) {
             return function (...post_args) {
                 return f.call(this, ...pre_args, ...post_args)
             }
         }
-    
+
         function pack(f) {
             return function (...args) {
                 return f.call(this, args)
             }
         }
-    
+
         function prepost(f, pre, post) {
             return async function (...args) {
                 for (let pre_f of pre) {
@@ -474,7 +474,7 @@ export class Starbear {
                 }
             }
         }
-    
+
         function run_toggles(f, toggles) {
             function pre() {
                 for (let toggle of toggles) {
@@ -488,7 +488,7 @@ export class Starbear {
             }
             return prepost(f, [pre], [post]);
         }
-    
+
         if (options.pack) {
             func = pack(func);
         }
