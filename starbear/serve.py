@@ -50,7 +50,7 @@ def _(page, selector):
 @register_constructor("Promise")
 def _(page, id):
     async def resolve(value):
-        await getattr(page.js, "$$BEAR").resolveLocalPromise(id, value)
+        await page.bearlib.resolveLocalPromise(id, value)
 
     return resolve
 
