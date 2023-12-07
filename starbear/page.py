@@ -153,6 +153,27 @@ class Page:
         arguments["command"] = command
         self._push(self.oq.put((arguments, history)))
 
+    def title(self, title):
+        self.queue_command(
+            "put", selector="head title", content=title, method="innerHTML"
+        )
+
+    def resource(self, resource, type=None):
+        if isinstance(resource, Path):
+            if resource.suffix == ".css" or type == "text/css":
+                node = H.link(rel="stylesheet", href=resource)
+            elif resource.suffix == ".js" or type == "text/javascript":
+                node = H.script(src=resource)
+            else:
+                raise ValueError(f"Cannot determine resource type for '{resource}'")
+        elif isinstance(resource, Tag):
+            node = resource
+        else:
+            raise TypeError("resource argument should be a Path or a Tag object")
+
+        parts, _, _ = self.representer.generate(node, filter_resources=None)
+        self.queue_command("resource", content=str(parts))
+
     def print(self, *elements, method="beforeend"):
         for element in elements:
             element = self._to_element(element)
