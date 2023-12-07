@@ -153,17 +153,19 @@ class Page:
         arguments["command"] = command
         self._push(self.oq.put((arguments, history)))
 
-    def title(self, title):
+    def set_title(self, title):
         self.queue_command(
             "put", selector="head title", content=title, method="innerHTML"
         )
 
-    def resource(self, resource, type=None):
+    def add_resource(self, resource, type=None):
         if isinstance(resource, Path):
             if resource.suffix == ".css" or type == "text/css":
                 node = H.link(rel="stylesheet", href=resource)
             elif resource.suffix == ".js" or type == "text/javascript":
                 node = H.script(src=resource)
+            elif resource.suffix == ".ico":
+                node = H.link(rel="icon", href=resource)
             else:
                 raise ValueError(f"Cannot determine resource type for '{resource}'")
         elif isinstance(resource, Tag):
