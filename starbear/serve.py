@@ -73,7 +73,7 @@ def routeinfo(params="", path=None, root=False, cls=Route, **kw):
 
 
 class BasicBear:
-    def __init__(self, fn):
+    def __init__(self, fn, title="Starbear"):
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
         self.appid = next(_count)
@@ -81,6 +81,7 @@ class BasicBear:
         self.router = None
         self.route = None
         self.representer = None
+        self.title = title
 
     ###########
     # Methods #
@@ -240,6 +241,7 @@ class LoneBear(BasicBear):
                     here / "bare-template.html",
                     body=response,
                     route=self.route,
+                    title=self.title,
                     _asset=self.template_asset,
                 )
             html = self.representer.generate_string(response)
@@ -251,12 +253,13 @@ class LoneBear(BasicBear):
 
 
 class Cub:
-    def __init__(self, mother, process, query_params={}, session={}):
+    def __init__(self, mother, process, query_params={}, session={}, title="Starbear"):
         self.mother = mother
         self.fn = mother.fn
         self.process = process
         self.query_params = query_params
         self.session = session
+        self.title = title
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
         self.representer = Representer(self.route)
         self.iq = Queue()
@@ -329,6 +332,7 @@ class Cub:
         node = template(
             here / "base-template.html",
             route=self.route,
+            title=self.title,
             _asset=self.template_asset,
         )
         self.reset = True
@@ -464,12 +468,13 @@ def forward_cub(fn, ensure=False):
 
 
 class MotherBear:
-    def __init__(self, fn, process_timeout=60, hide_processes=True):
+    def __init__(self, fn, process_timeout=60, hide_processes=True, title="Starbear"):
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
         self.router = None
         self.process_timeout = process_timeout
         self.hide_processes = hide_processes
+        self.title = title
         self.cubs = {}
         self.appid = next(_count)
 
@@ -477,7 +482,11 @@ class MotherBear:
         if proc not in self.cubs:
             if ensure:
                 self.cubs[proc] = Cub(
-                    self, proc, query_params=query_params, session=session
+                    self,
+                    proc,
+                    query_params=query_params,
+                    session=session,
+                    title=self.title,
                 )
             else:
                 return None
