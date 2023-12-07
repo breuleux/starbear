@@ -7,6 +7,28 @@
 
 const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
+const bearlibErrorCSS = new CSSStyleSheet();
+
+bearlibErrorCSS.replaceSync(`
+#starbear-error:empty {
+    display: none;
+}
+#starbear-error {
+    position: absolute;
+    right: 0;
+    top: 0;
+    border: 2px solid red;
+    padding: 3px;
+    max-height: 300px;
+    overflow: scroll;
+    white-space: pre;
+    color: black;
+    background: white;
+}
+`)
+
+document.adoptedStyleSheets = [...document.adoptedStyleSheets, bearlibErrorCSS];
+
 
 /////////////
 // Globals //
@@ -180,6 +202,9 @@ class Socket {
         this.queue = [];
         this.waitPromise = null;
         this.waitReasons = [];
+        this.errorDiv = document.createElement("div");
+        this.errorDiv.id = ["starbear-error"]
+        document.body.appendChild(this.errorDiv);
         this.loop();
     }
 
@@ -253,6 +278,10 @@ class Socket {
         )
     }
 
+    error(errorText) {
+        this.errorDiv.innerText = errorText;
+    }
+
     onopen() {
         this.tries = 0;
         this.send({type: "start", number: this.connectionCount});
@@ -275,12 +304,14 @@ class Socket {
             else if (event.code === 3002) {
                 // Application does not exist
                 console.error(`[socket] Application does not exist.`);
+                this.error("Session killed. Please refresh.");
             }
             else {
                 console.log(`[socket] Connection closed (code=${event.code} reason=${event.reason || 'n/a'})`);
             }
         } else {
             console.error(`[socket] Connection died (code=${event.code})`);
+            this.error("Connection lost. Trying to reconnect...");
             this.tries++;
             this.scheduleReconnect();
         }
