@@ -1,4 +1,5 @@
 import asyncio as aio
+from pathlib import Path
 
 from hrepr import H, Tag
 from hrepr.hgen import ResourceDeduplicator
@@ -114,9 +115,7 @@ class Page:
         )
         if not resources.empty():
             yield {
-                "command": "put",
-                "selector": "head",
-                "method": "beforeend",
+                "command": "resource",
                 "content": str(resources),
             }
         yield {

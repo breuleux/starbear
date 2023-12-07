@@ -92,6 +92,18 @@ function activateScripts(node) {
 }
 
 
+function hookOnloads(node, sock) {
+    for (let child of node.querySelectorAll("link,script")) {
+        let token = ++$_autoid;
+        let wake = () => sock.wake(token);
+        sock.requireWait(token);
+        child.onload = wake;
+        child.onerror = wake;
+        setTimeout(wake, 250);  // Safety valve
+    }
+}
+
+
 function incorporate(target, template, method, params) {
     let children = Array.from(template.childNodes);
 
@@ -126,17 +138,27 @@ function incorporate(target, template, method, params) {
 
 
 let commands = {
-    put(params) {
+    put(sock, params) {
         const template = document.createElement("div");
         template.innerHTML = params.content;
         activateScripts(template);
+        if (params.add_onload_hooks) {
+            hookOnloads(template, sock);
+        }
         const targets = document.querySelectorAll(params.selector);
         for (let target of targets) {
             incorporate(target, template, params.method, params);
         }
     },
 
-    eval(params) {
+    resource(sock, params) {
+        params.selector = "head";
+        params.method = params.method || "beforeend";
+        params.add_onload_hooks = true;
+        commands.put(sock, params);
+    },
+
+    eval(sock, params) {
         const context = params.selector && document.querySelector(params.selector);
         const func = (
             params.async
@@ -155,6 +177,10 @@ class Socket {
         this.connectionCount = 0;
         this.socket = null;
         this.tries = 0;
+        this.queue = [];
+        this.waitPromise = null;
+        this.waitReasons = [];
+        this.loop();
     }
 
     send(obj) {
@@ -168,6 +194,53 @@ class Socket {
         this.socket.onmessage = this.onmessage.bind(this);
         this.socket.onclose = this.onclose.bind(this);
         this.socket.onerror = this.onerror.bind(this);
+    }
+
+    requireWait(token) {
+        if (this.waitPromise === null) {
+            this.waitPromise = new Promise(
+                (resolve, reject) => {
+                    this._resolve = resolve;
+                    this._reject = reject;
+                }
+            )
+            this.waitReasons = [];
+        }
+        this.waitReasons.push(token);
+    }
+
+    wake(token) {
+        if (this.waitPromise !== null) {
+            let idx = this.waitReasons.indexOf(token);
+            if (idx !== -1) {
+                this.waitReasons.splice(idx, 1);
+            }
+            if (this.waitReasons.length === 0) {
+                this._resolve(null);
+            }
+        }
+    }
+
+    async loop() {
+        while (true) {
+            if (this.waitPromise !== null) {
+                await this.waitPromise;
+                this.waitPromise = null;
+            }
+            if (this.queue.length > 0) {
+                let entry = this.queue.shift();
+                let method = commands[entry.command];
+                if (method !== undefined) {
+                    method(this, entry);
+                }
+                else {
+                    console.log(`[socket] Cannot parse message: ${entry}`);
+                }
+            }
+            else {
+                this.requireWait("messages");
+            }
+        }
     }
 
     scheduleReconnect() {
@@ -190,15 +263,8 @@ class Socket {
         if (!Array.isArray(data)) {
             data = [data];
         }
-        for (const entry of data) {
-            let method = commands[entry.command];
-            if (method !== undefined) {
-                method(entry);
-            }
-            else {
-                console.log(`[socket] Cannot parse message: ${entry}`);
-            }
-        }
+        this.queue.push(...data);
+        this.wake("messages");
     }
 
     onclose(event) {
