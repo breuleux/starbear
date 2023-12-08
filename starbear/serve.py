@@ -72,6 +72,38 @@ def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     return deco
 
 
+def gather_routes(obj):
+    for method_name in dir(obj):
+        if method_name.startswith("route_"):
+            method = getattr(obj, method_name)
+            routeinfo = method.routeinfo
+            yield method, routeinfo
+
+
+def autoroutes(defns, mangle, wrap):
+    routes = []
+    for (method, routeinfo) in defns:
+        wmeth = wrap(method, routeinfo)
+        mname = mangle(routeinfo["name"])
+        route = routeinfo["cls"](
+            routeinfo["path"] + routeinfo["params"],
+            wmeth,
+            name=mname,
+            **routeinfo["keywords"],
+        )
+        routes.append(route)
+
+        if routeinfo["root"]:
+            route = routeinfo["cls"](
+                "/",
+                wmeth,
+                name=mangle("root"),
+                **routeinfo["keywords"],
+            )
+            routes.append(route)
+    return routes
+
+
 class _TemporaryBase:
     def __init__(self):
         self.appid = next(_count)
@@ -186,7 +218,7 @@ class BasicBear(_TemporaryBase):
             self.route = self.path_for("main").rstrip("/")
             self.representer = Representer(self.route)
 
-    def wrap_route(self, method):
+    def wrap_route(self, method, routeinfo):
         @wraps(method)
         async def wrapped(request):
             self.ensure_representer(request)
@@ -194,35 +226,12 @@ class BasicBear(_TemporaryBase):
 
         return wrapped
 
-    def autoroutes(self, wrapper):
-        routes = []
-        for method_name in dir(self):
-            if method_name.startswith("route_"):
-                method = getattr(self, method_name)
-                routeinfo = method.routeinfo
-
-                wmeth = wrapper(method)
-                mname = self._mangle(routeinfo["name"])
-                route = routeinfo["cls"](
-                    routeinfo["path"] + routeinfo["params"],
-                    wmeth,
-                    name=mname,
-                    **routeinfo["keywords"],
-                )
-                routes.append(route)
-
-                if routeinfo["root"]:
-                    route = routeinfo["cls"](
-                        "/",
-                        wmeth,
-                        name=self._mangle("root"),
-                        **routeinfo["keywords"],
-                    )
-                    routes.append(route)
-        return routes
-
     def routes(self):
-        return self.autoroutes(wrapper=self.wrap_route)
+        return autoroutes(
+            defns=gather_routes(self),
+            mangle=self._mangle,
+            wrap=self.wrap_route,
+        )
 
     ##############################
     # For standalone application #
@@ -438,6 +447,9 @@ class MotherBear:
                 return None
         return self.cubs[proc]
 
+    def _mangle(self, name):
+        return f"app{self.appid}_{name}"
+
     def path_for(self, name, **kwargs):
         return self.router.url_path_for(self._mangle(name), **kwargs)
 
@@ -494,9 +506,6 @@ class MotherBear:
     @forward_cub
     async def route_queue(self, request, cub):
         return await cub.route_queue(request)
-
-    def _mangle(self, name):
-        return f"app{self.appid}_{name}"
 
     def _make_route(self, name, path, cls=Route, **kwargs):
         return cls(
