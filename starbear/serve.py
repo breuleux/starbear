@@ -72,23 +72,24 @@ def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     return deco
 
 
-class BasicBear:
-    def __init__(self, fn, title="Starbear"):
-        self.fn = fn
-        self.__doc__ = getattr(fn, "__doc__", None)
-        self.appid = next(_count)
+class _TemporaryBase:
+    def __init__(self):
         self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
-        self.router = None
-        self.route = None
-        self.representer = None
-        self.title = title
 
     ###########
     # Methods #
     ###########
 
+    def _mangle(self, name):
+        return f"app{self.appid}_{name}"
+
     def path_for(self, name, **kwargs):
         return self.router.url_path_for(self._mangle(name), **kwargs)
+
+    def template_asset(self, name):
+        return (
+            self.route + "/file/" + self.representer.file_registry.register(here / name)
+        )
 
     def object_hook(self, dct):
         return dct
@@ -98,77 +99,6 @@ class BasicBear:
         if isinstance(body, bytes):
             body = body.decode(encoding="utf8")
         return self._json_decoder.decode(body)
-
-    def template_asset(self, name):
-        return (
-            self.route + "/file/" + self.representer.file_registry.register(here / name)
-        )
-
-    ####################
-    # Route generation #
-    ####################
-
-    def ensure_representer(self, request):
-        router = request.scope["router"]
-        if self.router is None:
-            self.router = router
-        else:
-            assert self.router is router
-        if self.representer is None:
-            self.route = self.path_for("main").rstrip("/")
-            self.representer = Representer(self.route)
-
-    def wrap_route(self, method):
-        @wraps(method)
-        async def wrapped(request):
-            self.ensure_representer(request)
-            return await method(request)
-
-        return wrapped
-
-    def _mangle(self, name):
-        return f"app{self.appid}_{name}"
-
-    def _autoroutes(self):
-        routes = []
-        for method_name in dir(self):
-            if method_name.startswith("route_"):
-                method = getattr(self, method_name)
-                routeinfo = method.routeinfo
-
-                wmeth = self.wrap_route(method)
-                mname = self._mangle(routeinfo["name"])
-                route = routeinfo["cls"](
-                    routeinfo["path"] + routeinfo["params"],
-                    wmeth,
-                    name=mname,
-                    **routeinfo["keywords"],
-                )
-                routes.append(route)
-
-                if routeinfo["root"]:
-                    route = routeinfo["cls"](
-                        "/",
-                        wmeth,
-                        name=mname,
-                        **routeinfo["keywords"],
-                    )
-                    routes.append(route)
-        return routes
-
-    def routes(self):
-        return self._autoroutes()
-
-    ##############################
-    # For standalone application #
-    ##############################
-
-    @cached_property
-    def _mnt(self):
-        return Mount("/", routes=self.routes())
-
-    async def __call__(self, scope, receive, send):
-        await self._mnt.handle(scope, receive, send)
 
     ################
     # Basic routes #
@@ -231,6 +161,82 @@ class BasicBear:
         return Response(content=vf.content, media_type=vf.type)
 
 
+class BasicBear(_TemporaryBase):
+    def __init__(self, fn, title="Starbear"):
+        super().__init__()
+        self.fn = fn
+        self.__doc__ = getattr(fn, "__doc__", None)
+        self.appid = next(_count)
+        self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
+        self.router = None
+        self.route = None
+        self.representer = None
+        self.title = title
+
+    ####################
+    # Route generation #
+    ####################
+
+    def ensure_representer(self, request):
+        router = request.scope["router"]
+        if self.router is None:
+            self.router = router
+        else:
+            assert self.router is router
+        if self.representer is None:
+            self.route = self.path_for("main").rstrip("/")
+            self.representer = Representer(self.route)
+
+    def wrap_route(self, method):
+        @wraps(method)
+        async def wrapped(request):
+            self.ensure_representer(request)
+            return await method(request)
+
+        return wrapped
+
+    def _autoroutes(self):
+        routes = []
+        for method_name in dir(self):
+            if method_name.startswith("route_"):
+                method = getattr(self, method_name)
+                routeinfo = method.routeinfo
+
+                wmeth = self.wrap_route(method)
+                mname = self._mangle(routeinfo["name"])
+                route = routeinfo["cls"](
+                    routeinfo["path"] + routeinfo["params"],
+                    wmeth,
+                    name=mname,
+                    **routeinfo["keywords"],
+                )
+                routes.append(route)
+
+                if routeinfo["root"]:
+                    route = routeinfo["cls"](
+                        "/",
+                        wmeth,
+                        name=mname,
+                        **routeinfo["keywords"],
+                    )
+                    routes.append(route)
+        return routes
+
+    def routes(self):
+        return self._autoroutes()
+
+    ##############################
+    # For standalone application #
+    ##############################
+
+    @cached_property
+    def _mnt(self):
+        return Mount("/", routes=self.routes())
+
+    async def __call__(self, scope, receive, send):
+        await self._mnt.handle(scope, receive, send)
+
+
 class LoneBear(BasicBear):
     @routeinfo(path="/!", root=True)
     async def route_main(self, request):
@@ -252,8 +258,9 @@ class LoneBear(BasicBear):
             return PlainTextResponse(str(response))
 
 
-class Cub:
+class Cub(_TemporaryBase):
     def __init__(self, mother, process, query_params={}, session={}, title="Starbear"):
+        super().__init__()
         self.mother = mother
         self.fn = mother.fn
         self.process = process
@@ -286,11 +293,6 @@ class Cub:
             logger.error("Could not get user")
         getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
 
-    def template_asset(self, name):
-        return (
-            self.route + "/file/" + self.representer.file_registry.register(here / name)
-        )
-
     def schedule_selfdestruct(self):
         async def sd():
             await aio.sleep(self.mother.process_timeout)
@@ -315,17 +317,13 @@ class Cub:
         finally:
             self.log("info", "Finished process")
 
-    def _object_hook(self, dct):
+    def object_hook(self, dct):
         if "%" in dct:
             args = dict(dct)
             args.pop("%")
             return construct[dct["%"]](self.page, **args)
         else:
             return dct
-
-    async def json(self, request):
-        body = await request.body()
-        return json.loads(body, object_hook=self._object_hook)
 
     async def route_main(self, request):
         self.unschedule_selfdestruct()
@@ -387,57 +385,6 @@ class Cub:
             return_when=aio.FIRST_COMPLETED,
         )
         self.schedule_selfdestruct()
-
-    async def route_method(self, request):
-        method_id = request.path_params["method"]
-        method = self.representer.callback_registry.resolve(method_id)
-        try:
-            args = await self.json(request)
-        except json.JSONDecodeError:
-            args = [await request.body()]
-        result = method(*args, **request.query_params)
-        if inspect.iscoroutine(result):
-            result = await result
-        if isinstance(result, Tag):
-            return HTMLResponse(self.representer(result))
-        else:
-            return JSONResponse(result)
-
-    async def route_post(self, request):
-        data = await self.json(request)
-        if "error" in data:
-            self.representer.future_registry.reject(
-                fid=data["reqid"],
-                error=data["error"],
-            )
-        else:
-            self.representer.future_registry.resolve(
-                fid=data["reqid"],
-                value=data.get("value", None),
-            )
-        return JSONResponse({"status": "ok"})
-
-    async def route_queue(self, request):
-        data = await self.json(request)
-        self.representer.queue_registry.put(
-            qid=data["reqid"],
-            value=data["value"],
-        )
-        return JSONResponse({"status": "ok"})
-
-    async def route_file(self, request):
-        pth = self.representer.file_registry.get_file_from_url(
-            request.path_params["path"]
-        )
-        if pth is None:
-            raise HTTPException(
-                status_code=404, detail="File not found or not available."
-            )
-        return FileResponse(pth, headers={"Cache-Control": "no-cache"})
-
-    async def route_vfile(self, request):
-        vf = self.representer.vfile_registry.get(request.path_params["path"])
-        return Response(content=vf.content, media_type=vf.type)
 
 
 def get_process_from_request(request):
