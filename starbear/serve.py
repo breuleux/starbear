@@ -74,6 +74,7 @@ def routeinfo(params="", path=None, root=False, cls=Route, **kw):
 
 class _TemporaryBase:
     def __init__(self):
+        self.appid = next(_count)
         self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
 
     ###########
@@ -166,8 +167,6 @@ class BasicBear(_TemporaryBase):
         super().__init__()
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
-        self.appid = next(_count)
-        self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
         self.router = None
         self.route = None
         self.representer = None
@@ -195,14 +194,14 @@ class BasicBear(_TemporaryBase):
 
         return wrapped
 
-    def _autoroutes(self):
+    def autoroutes(self, wrapper):
         routes = []
         for method_name in dir(self):
             if method_name.startswith("route_"):
                 method = getattr(self, method_name)
                 routeinfo = method.routeinfo
 
-                wmeth = self.wrap_route(method)
+                wmeth = wrapper(method)
                 mname = self._mangle(routeinfo["name"])
                 route = routeinfo["cls"](
                     routeinfo["path"] + routeinfo["params"],
@@ -216,14 +215,14 @@ class BasicBear(_TemporaryBase):
                     route = routeinfo["cls"](
                         "/",
                         wmeth,
-                        name=mname,
+                        name=self._mangle("root"),
                         **routeinfo["keywords"],
                     )
                     routes.append(route)
         return routes
 
     def routes(self):
-        return self._autoroutes()
+        return self.autoroutes(wrapper=self.wrap_route)
 
     ##############################
     # For standalone application #
@@ -510,17 +509,22 @@ class MotherBear:
     def routes(self):
         return [
             self._make_route("dispatch", "/"),
-            self._make_route("main", "/!{process:str}/"),
-            self._make_route(
-                "method",
-                "/!{process:str}/method/{method:int}",
-                methods=["GET", "POST"],
-            ),
-            self._make_route("file", "/!{process:str}/file/{path:path}"),
-            self._make_route("vfile", "/!{process:str}/vfile/{path:path}"),
-            self._make_route("post", "/!{process:str}/post", methods=["POST"]),
-            self._make_route("queue", "/!{process:str}/queue", methods=["POST"]),
-            self._make_route("socket", "/!{process:str}/socket", cls=WebSocketRoute),
+            Mount(
+                "/!{process:str}/",
+                routes=[
+                    self._make_route("main", "/"),
+                    self._make_route(
+                        "method",
+                        "/method/{method:int}",
+                        methods=["GET", "POST"],
+                    ),
+                    self._make_route("file", "/file/{path:path}"),
+                    self._make_route("vfile", "/vfile/{path:path}"),
+                    self._make_route("post", "/post", methods=["POST"]),
+                    self._make_route("queue", "/queue", methods=["POST"]),
+                    self._make_route("socket", "/socket", cls=WebSocketRoute),
+                ]
+            )
         ]
 
     @cached_property
