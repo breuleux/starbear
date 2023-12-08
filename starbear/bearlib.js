@@ -279,12 +279,13 @@ class Socket {
     }
 
     error(errorText) {
-        this.errorDiv.innerText = errorText;
+        this.errorDiv.innerHTML = `<div id="starbear-connection-error">${errorText}</div>`;
     }
 
     onopen() {
         this.tries = 0;
         this.send({type: "start", number: this.connectionCount});
+        this.errorDiv.querySelector("#starbear-connection-error")?.remove();
     }
 
     onmessage(event) {
