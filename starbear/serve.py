@@ -80,10 +80,10 @@ def gather_routes(obj):
             yield method, routeinfo
 
 
-def autoroutes(defns, prefix, mangle, wrap):
+def autoroutes(defns, prefix, mangle, wrap=None):
     routes = []
     for (method, routeinfo) in defns:
-        wmeth = wrap(method, routeinfo)
+        wmeth = wrap(method, routeinfo) if wrap else method
         mname = mangle(routeinfo["name"])
         route = routeinfo["cls"](
             prefix + routeinfo["path"] + routeinfo["params"],
@@ -335,6 +335,7 @@ class Cub(_TemporaryBase):
         else:
             return dct
 
+    @routeinfo(root=True)
     async def route_main(self, request):
         self.unschedule_selfdestruct()
         node = template(
@@ -353,6 +354,7 @@ class Cub(_TemporaryBase):
             },
         )
 
+    @routeinfo(cls=WebSocketRoute)
     async def route_socket(self, ws):
         self.unschedule_selfdestruct()
 
@@ -463,6 +465,7 @@ class MotherBear:
         else:
             assert self.router is router
 
+    @routeinfo(root=True)
     async def route_dispatch(self, request):
         self._ensure_router(request)
         process = get_process_from_request(request)
@@ -481,60 +484,32 @@ class MotherBear:
                 url = f"{url}?{request.query_params}"
             return RedirectResponse(url=url)
 
-    @forward_cub(ensure=True)
-    async def route_main(self, request, cub):
-        return await cub.route_main(request)
+    def wrap_route(self, method, routeinfo):
+        @forward_cub(ensure=routeinfo["root"])
+        async def fn(self, request, cub):
+            return await method(cub, request)
 
-    @forward_cub
-    async def route_socket(self, ws, cub):
-        return await cub.route_socket(ws)
+        @wraps(method)
+        async def wrapped(request):
+            return await fn(self, request)
 
-    @forward_cub
-    async def route_method(self, request, cub):
-        return await cub.route_method(request)
-
-    @forward_cub
-    async def route_file(self, request, cub):
-        return await cub.route_file(request)
-
-    @forward_cub
-    async def route_vfile(self, request, cub):
-        return await cub.route_vfile(request)
-
-    @forward_cub
-    async def route_post(self, request, cub):
-        return await cub.route_post(request)
-
-    @forward_cub
-    async def route_queue(self, request, cub):
-        return await cub.route_queue(request)
-
-    def _make_route(self, name, path, cls=Route, **kwargs):
-        return cls(
-            path,
-            getattr(self, f"route_{name}"),
-            name=self._mangle(name),
-            **kwargs,
-        )
+        return wrapped
 
     def routes(self):
         return [
-            self._make_route("dispatch", "/"),
+            *autoroutes(
+                defns=gather_routes(self),
+                prefix="",
+                mangle=self._mangle,
+            ),
             Mount(
                 "/!{process:str}/",
-                routes=[
-                    self._make_route("main", "/"),
-                    self._make_route(
-                        "method",
-                        "/method/{method:int}",
-                        methods=["GET", "POST"],
-                    ),
-                    self._make_route("file", "/file/{path:path}"),
-                    self._make_route("vfile", "/vfile/{path:path}"),
-                    self._make_route("post", "/post", methods=["POST"]),
-                    self._make_route("queue", "/queue", methods=["POST"]),
-                    self._make_route("socket", "/socket", cls=WebSocketRoute),
-                ],
+                routes=autoroutes(
+                    defns=gather_routes(Cub),
+                    prefix="",
+                    mangle=self._mangle,
+                    wrap=self.wrap_route,
+                ),
             ),
         ]
 
