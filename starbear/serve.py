@@ -62,7 +62,7 @@ def routeinfo(params="", path=None, root=False, cls=Route, **kw):
         method.routeinfo = {
             "cls": cls,
             "name": name,
-            "path": path or f"/!/{name}",
+            "path": path or ("/" if root else f"/{name}"),
             "root": root,
             "params": params,
             "keywords": kw,
@@ -80,13 +80,13 @@ def gather_routes(obj):
             yield method, routeinfo
 
 
-def autoroutes(defns, mangle, wrap):
+def autoroutes(defns, prefix, mangle, wrap):
     routes = []
     for (method, routeinfo) in defns:
         wmeth = wrap(method, routeinfo)
         mname = mangle(routeinfo["name"])
         route = routeinfo["cls"](
-            routeinfo["path"] + routeinfo["params"],
+            prefix + routeinfo["path"] + routeinfo["params"],
             wmeth,
             name=mname,
             **routeinfo["keywords"],
@@ -101,6 +101,7 @@ def autoroutes(defns, mangle, wrap):
                 **routeinfo["keywords"],
             )
             routes.append(route)
+
     return routes
 
 
@@ -229,6 +230,7 @@ class BasicBear(_TemporaryBase):
     def routes(self):
         return autoroutes(
             defns=gather_routes(self),
+            prefix="/!",
             mangle=self._mangle,
             wrap=self.wrap_route,
         )
@@ -246,7 +248,7 @@ class BasicBear(_TemporaryBase):
 
 
 class LoneBear(BasicBear):
-    @routeinfo(path="/!", root=True)
+    @routeinfo(root=True)
     async def route_main(self, request):
         response = await self.fn(request)
         if isinstance(response, Tag):
@@ -532,8 +534,8 @@ class MotherBear:
                     self._make_route("post", "/post", methods=["POST"]),
                     self._make_route("queue", "/queue", methods=["POST"]),
                     self._make_route("socket", "/socket", cls=WebSocketRoute),
-                ]
-            )
+                ],
+            ),
         ]
 
     @cached_property
