@@ -105,7 +105,7 @@ def autoroutes(defns, prefix, mangle, wrap=None):
     return routes
 
 
-class _TemporaryBase:
+class _TemporaryBaseBase:
     def __init__(self):
         self.appid = next(_count)
         self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
@@ -114,11 +114,11 @@ class _TemporaryBase:
     # Methods #
     ###########
 
-    def _mangle(self, name):
+    def mangle(self, name):
         return f"app{self.appid}_{name}"
 
     def path_for(self, name, **kwargs):
-        return self.router.url_path_for(self._mangle(name), **kwargs)
+        return self.router.url_path_for(self.mangle(name), **kwargs)
 
     def template_asset(self, name):
         return (
@@ -133,6 +133,31 @@ class _TemporaryBase:
         if isinstance(body, bytes):
             body = body.decode(encoding="utf8")
         return self._json_decoder.decode(body)
+
+    def ensure_router(self, request):
+        router = request.scope["router"]
+        if self.router is None:
+            self.router = router
+            self.app = request.scope.get("app", None)
+        else:
+            assert self.router is router
+
+    ##############################
+    # For standalone application #
+    ##############################
+
+    def routes(self):
+        return []
+
+    @cached_property
+    def _mnt(self):
+        return Mount("/", routes=self.routes())
+
+    async def __call__(self, scope, receive, send):
+        await self._mnt.handle(scope, receive, send)
+
+
+class _TemporaryBase(_TemporaryBaseBase):
 
     ################
     # Basic routes #
@@ -210,11 +235,7 @@ class BasicBear(_TemporaryBase):
     ####################
 
     def ensure_representer(self, request):
-        router = request.scope["router"]
-        if self.router is None:
-            self.router = router
-        else:
-            assert self.router is router
+        self.ensure_router(request)
         if self.representer is None:
             self.route = self.path_for("main").rstrip("/")
             self.representer = Representer(self.route)
@@ -231,20 +252,9 @@ class BasicBear(_TemporaryBase):
         return autoroutes(
             defns=gather_routes(self),
             prefix="/!",
-            mangle=self._mangle,
+            mangle=self.mangle,
             wrap=self.wrap_route,
         )
-
-    ##############################
-    # For standalone application #
-    ##############################
-
-    @cached_property
-    def _mnt(self):
-        return Mount("/", routes=self.routes())
-
-    async def __call__(self, scope, receive, send):
-        await self._mnt.handle(scope, receive, send)
 
 
 class LoneBear(BasicBear):
@@ -335,6 +345,10 @@ class Cub(_TemporaryBase):
         else:
             return dct
 
+    ##############
+    # Cub routes #
+    ##############
+
     @routeinfo(root=True)
     async def route_main(self, request):
         self.unschedule_selfdestruct()
@@ -410,7 +424,7 @@ def get_process_from_request(request):
 def forward_cub(fn, ensure=False):
     @wraps(fn)
     async def fwd(self, request):
-        self._ensure_router(request)
+        self.ensure_router(request)
         process = get_process_from_request(request)
         cub = self._get(process, query_params=request.query_params, ensure=ensure)
         if cub is None:
@@ -426,8 +440,9 @@ def forward_cub(fn, ensure=False):
     return fwd
 
 
-class MotherBear:
+class MotherBear(_TemporaryBaseBase):
     def __init__(self, fn, process_timeout=60, hide_processes=True, title="Starbear"):
+        super().__init__()
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
         self.router = None
@@ -435,7 +450,6 @@ class MotherBear:
         self.hide_processes = hide_processes
         self.title = title
         self.cubs = {}
-        self.appid = next(_count)
 
     def _get(self, proc, query_params={}, session={}, ensure=False):
         if proc not in self.cubs:
@@ -451,23 +465,13 @@ class MotherBear:
                 return None
         return self.cubs[proc]
 
-    def _mangle(self, name):
-        return f"app{self.appid}_{name}"
-
-    def path_for(self, name, **kwargs):
-        return self.router.url_path_for(self._mangle(name), **kwargs)
-
-    def _ensure_router(self, request):
-        router = request.scope["router"]
-        if self.router is None:
-            self.router = router
-            self.app = request.scope.get("app", None)
-        else:
-            assert self.router is router
+    #################
+    # Mother routes #
+    #################
 
     @routeinfo(root=True)
     async def route_dispatch(self, request):
-        self._ensure_router(request)
+        self.ensure_router(request)
         process = get_process_from_request(request)
         main_path = self.path_for("main", process=process)
         if self.hide_processes:
@@ -483,6 +487,10 @@ class MotherBear:
             if request.query_params:
                 url = f"{url}?{request.query_params}"
             return RedirectResponse(url=url)
+
+    ####################
+    # Construct routes #
+    ####################
 
     def wrap_route(self, method, routeinfo):
         @forward_cub(ensure=routeinfo["root"])
@@ -500,25 +508,18 @@ class MotherBear:
             *autoroutes(
                 defns=gather_routes(self),
                 prefix="",
-                mangle=self._mangle,
+                mangle=self.mangle,
             ),
             Mount(
                 "/!{process:str}/",
                 routes=autoroutes(
                     defns=gather_routes(Cub),
                     prefix="",
-                    mangle=self._mangle,
+                    mangle=self.mangle,
                     wrap=self.wrap_route,
                 ),
             ),
         ]
-
-    @cached_property
-    def _mnt(self):
-        return Mount("/", routes=self.routes())
-
-    async def __call__(self, scope, receive, send):
-        await self._mnt.handle(scope, receive, send)
 
 
 @keyword_decorator
