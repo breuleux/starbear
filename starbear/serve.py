@@ -159,6 +159,7 @@ class BasicBear(AbstractBear):
     def __init__(self, template, template_params):
         super().__init__()
         self.route = None
+        self._template_location = template.parent
         self._template = template
         self._template_params = template_params
 
@@ -166,9 +167,11 @@ class BasicBear(AbstractBear):
     # Basic functions #
     ###################
 
-    def template_asset(self, name):
+    def template_asset(self, name, where):
         return (
-            self.route + "/file/" + self.representer.file_registry.register(here / name)
+            self.route
+            + "/file/"
+            + self.representer.file_registry.register(where / name)
         )
 
     def template(self, **params):
@@ -177,7 +180,8 @@ class BasicBear(AbstractBear):
             **self._template_params,
             **params,
             route=self.route,
-            _asset=self.template_asset,
+            _asset=lambda name: self.template_asset(name, self._template_location),
+            _std=lambda name: self.template_asset(name, here),
         )
 
     ################
