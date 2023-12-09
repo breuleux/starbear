@@ -441,26 +441,6 @@ def get_process_from_request(request):
     return process_base
 
 
-@keyword_decorator
-def forward_cub(fn, ensure=False):
-    @wraps(fn)
-    async def fwd(self, request):
-        self.ensure_router(request)
-        process = get_process_from_request(request)
-        cub = self._get(process, query_params=request.query_params, ensure=ensure)
-        if cub is None:
-            logger.warning(f"Trying to access missing process: {process}")
-            if isinstance(request, WebSocket):
-                await request.accept()
-                await request.close(code=3002, reason="Missing application")
-            else:
-                return JSONResponse({"missing": process}, status_code=404)
-        else:
-            return await fn(self, request, cub)
-
-    return fwd
-
-
 class MotherBear(AbstractBear):
     def __init__(self, fn, process_timeout=60, hide_processes=True, **cub_params):
         super().__init__()
@@ -514,15 +494,24 @@ class MotherBear(AbstractBear):
     ####################
 
     def wrap_route(self, method, routeinfo):
-        @forward_cub(ensure=routeinfo["root"])
-        async def fn(self, request, cub):
-            return await method(cub, request)
+        ensure = routeinfo["root"]
 
         @wraps(method)
-        async def wrapped(request):
-            return await fn(self, request)
+        async def forward(request):
+            self.ensure_router(request)
+            process = get_process_from_request(request)
+            cub = self._get(process, query_params=request.query_params, ensure=ensure)
+            if cub is None:
+                logger.warning(f"Trying to access missing process: {process}")
+                if isinstance(request, WebSocket):
+                    await request.accept()
+                    await request.close(code=3002, reason="Missing application")
+                else:
+                    return JSONResponse({"missing": process}, status_code=404)
+            else:
+                return await method(cub, request)
 
-        return wrapped
+        return forward
 
     def routes(self):
         return [
