@@ -105,9 +105,12 @@ def autoroutes(defns, prefix, mangle, wrap=None):
     return routes
 
 
-class _TemporaryBaseBase:
+class AbstractBear:
     def __init__(self):
         self.appid = next(_count)
+        self.route = None
+        self.router = None
+        self.representer = None
         self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
 
     ###########
@@ -119,11 +122,6 @@ class _TemporaryBaseBase:
 
     def path_for(self, name, **kwargs):
         return self.router.url_path_for(self.mangle(name), **kwargs)
-
-    def template_asset(self, name):
-        return (
-            self.route + "/file/" + self.representer.file_registry.register(here / name)
-        )
 
     def object_hook(self, dct):
         return dct
@@ -157,7 +155,30 @@ class _TemporaryBaseBase:
         await self._mnt.handle(scope, receive, send)
 
 
-class _TemporaryBase(_TemporaryBaseBase):
+class BasicBear(AbstractBear):
+    def __init__(self, template, template_params):
+        super().__init__()
+        self.route = None
+        self._template = template
+        self._template_params = template_params
+
+    ###################
+    # Basic functions #
+    ###################
+
+    def template_asset(self, name):
+        return (
+            self.route + "/file/" + self.representer.file_registry.register(here / name)
+        )
+
+    def template(self, **params):
+        return template(
+            self._template,
+            **self._template_params,
+            **params,
+            route=self.route,
+            _asset=self.template_asset,
+        )
 
     ################
     # Basic routes #
@@ -220,15 +241,14 @@ class _TemporaryBase(_TemporaryBaseBase):
         return Response(content=vf.content, media_type=vf.type)
 
 
-class BasicBear(_TemporaryBase):
-    def __init__(self, fn, title="Starbear"):
-        super().__init__()
+class LoneBear(BasicBear):
+    def __init__(self, fn, template=None, template_params=None):
+        super().__init__(
+            template=template or (here / "bare-template.html"),
+            template_params=template_params or {"title": "Starbear"},
+        )
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
-        self.router = None
-        self.route = None
-        self.representer = None
-        self.title = title
 
     ####################
     # Route generation #
@@ -256,20 +276,12 @@ class BasicBear(_TemporaryBase):
             wrap=self.wrap_route,
         )
 
-
-class LoneBear(BasicBear):
     @routeinfo(root=True)
     async def route_main(self, request):
         response = await self.fn(request)
         if isinstance(response, Tag):
             if response.name != "html":
-                response = template(
-                    here / "bare-template.html",
-                    body=response,
-                    route=self.route,
-                    title=self.title,
-                    _asset=self.template_asset,
-                )
+                response = self.template(body=response)
             html = self.representer.generate_string(response)
             return HTMLResponse(html)
         elif isinstance(response, dict):
@@ -278,15 +290,25 @@ class LoneBear(BasicBear):
             return PlainTextResponse(str(response))
 
 
-class Cub(_TemporaryBase):
-    def __init__(self, mother, process, query_params={}, session={}, title="Starbear"):
-        super().__init__()
+class Cub(BasicBear):
+    def __init__(
+        self,
+        mother,
+        process,
+        query_params={},
+        session={},
+        template=None,
+        template_params=None,
+    ):
+        super().__init__(
+            template=template or (here / "base-template.html"),
+            template_params=template_params or {"title": "Starbear"},
+        )
         self.mother = mother
         self.fn = mother.fn
         self.process = process
         self.query_params = query_params
         self.session = session
-        self.title = title
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
         self.representer = Representer(self.route)
         self.iq = Queue()
@@ -352,12 +374,7 @@ class Cub(_TemporaryBase):
     @routeinfo(root=True)
     async def route_main(self, request):
         self.unschedule_selfdestruct()
-        node = template(
-            here / "base-template.html",
-            route=self.route,
-            title=self.title,
-            _asset=self.template_asset,
-        )
+        node = self.template()
         self.reset = True
         return HTMLResponse(
             self.representer.generate_string(node),
@@ -440,15 +457,15 @@ def forward_cub(fn, ensure=False):
     return fwd
 
 
-class MotherBear(_TemporaryBaseBase):
-    def __init__(self, fn, process_timeout=60, hide_processes=True, title="Starbear"):
+class MotherBear(AbstractBear):
+    def __init__(self, fn, process_timeout=60, hide_processes=True, **cub_params):
         super().__init__()
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
         self.router = None
         self.process_timeout = process_timeout
         self.hide_processes = hide_processes
-        self.title = title
+        self.cub_params = cub_params
         self.cubs = {}
 
     def _get(self, proc, query_params={}, session={}, ensure=False):
@@ -459,7 +476,7 @@ class MotherBear(_TemporaryBaseBase):
                     proc,
                     query_params=query_params,
                     session=session,
-                    title=self.title,
+                    **self.cub_params,
                 )
             else:
                 return None
