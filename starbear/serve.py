@@ -32,6 +32,7 @@ here = Path(__file__).parent
 _count = count()
 
 construct = {}
+dev_injections = []
 
 
 def register_constructor(key):
@@ -161,7 +162,10 @@ class BasicBear(AbstractBear):
         self.route = None
         self._template_location = template.parent
         self._template = template
-        self._template_params = template_params
+        self._template_params = {
+            "title": "Starbear",
+            **template_params,
+        }
 
     ###################
     # Basic functions #
@@ -180,6 +184,7 @@ class BasicBear(AbstractBear):
             **self._template_params,
             **params,
             route=self.route,
+            dev=dev_injections,
             _asset=lambda name: self.template_asset(name, self._template_location),
             _std=lambda name: self.template_asset(name, here),
         )
@@ -246,10 +251,10 @@ class BasicBear(AbstractBear):
 
 
 class LoneBear(BasicBear):
-    def __init__(self, fn, template=None, template_params=None):
+    def __init__(self, fn, template=None, template_params={}):
         super().__init__(
             template=template or (here / "bare-template.html"),
-            template_params=template_params or {"title": "Starbear"},
+            template_params=template_params,
         )
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
@@ -302,11 +307,11 @@ class Cub(BasicBear):
         query_params={},
         session={},
         template=None,
-        template_params=None,
+        template_params={},
     ):
         super().__init__(
             template=template or (here / "base-template.html"),
-            template_params=template_params or {"title": "Starbear"},
+            template_params=template_params,
         )
         self.mother = mother
         self.fn = mother.fn

@@ -188,6 +188,10 @@ let commands = {
             : new Function(params.code)
         );
         func.call(context);
+    },
+
+    reload(sock, params) {
+        window.location.reload();
     }
 }
 
