@@ -89,6 +89,7 @@ Event.prototype.toJSON = function () {
         target: this.target,
         form: this.target.elements,
         value: this.target.value,
+        refs: this.$refs,
     }
 }
 
@@ -567,7 +568,28 @@ export class Starbear {
                 }
                 const form = element ? element.elements.toJSON(event) : {};
                 form.$target = element.toJSON();
+                form.$refs = event.$refs;
                 return f.call(this, form);
+            }
+        }
+
+        function getrefs(f) {
+            return function (event) {
+                // TODO: proper error when this is not an event
+                let element = event.target;
+                let refs = [];
+                do {
+                    if (element.hasAttribute("--ref")) {
+                        let lnk = element.getAttribute("--ref");
+                        if (lnk.startsWith("obj#")) {
+                            let [_, id] = lnk.split("#");
+                            lnk = {"%": "Reference", "id": Number(id)};
+                        }
+                        refs.push(lnk);
+                    }
+                } while ((element = element.parentNode) instanceof Element);
+                event.$refs = refs;
+                return f.call(this, event);
             }
         }
 
@@ -628,6 +650,9 @@ export class Starbear {
         }
         if (options.form) {
             func = getform(func);
+        }
+        if (options.refs) {
+            func = getrefs(func);
         }
         if (options.toggles) {
             let toggles = (

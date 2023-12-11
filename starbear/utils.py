@@ -107,6 +107,7 @@ class ClientWrap:
         "debounce": 0,
         "extract": None,
         "form": False,
+        "refs": False,
         "pack": False,
         "partial": None,
         "toggles": None,

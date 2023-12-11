@@ -197,6 +197,11 @@ class Representer:
                 return f"$$BEAR.event.call(this, $$BEAR.func({method_id}))"
 
         @attr_embed.register
+        def attr_embed(self, attr: str, ref: Reference):
+            obj_id = object_registry.register(ref.datum)
+            return f"obj#{obj_id}"
+
+        @attr_embed.register
         def attr_embed(self, attr: str, queue: Queue):
             qid = queue_registry.register(queue)
             return f"$$BEAR.event.call(this, $$BEAR.queue({qid}))"
