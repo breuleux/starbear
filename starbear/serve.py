@@ -56,6 +56,11 @@ def _(page, id):
     return resolve
 
 
+@register_constructor("Reference")
+def _(page, id):
+    return page.representer.object_registry.resolve(id)
+
+
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     def deco(method):
         assert method.__name__.startswith("route_")
@@ -196,7 +201,7 @@ class BasicBear(AbstractBear):
     @routeinfo("/{method:int}", methods=["GET", "POST"])
     async def route_method(self, request):
         method_id = request.path_params["method"]
-        method = self.representer.callback_registry.resolve(method_id)
+        method = self.representer.object_registry.resolve(method_id)
         try:
             args = await self.json(request)
         except json.JSONDecodeError:

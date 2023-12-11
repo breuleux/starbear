@@ -9,6 +9,7 @@ from typing import Union
 from hrepr import embed, hrepr, standard_html
 from ovld import has_attribute
 
+from .ref import ObjectRegistry, Reference
 from .utils import FeedbackQueue, VirtualFile
 
 
@@ -143,7 +144,9 @@ class Representer:
         from asyncio import Future, Queue
 
         representer = self
-        callback_registry = self.callback_registry = CallbackRegistry(weak=False)
+        object_registry = self.object_registry = ObjectRegistry(
+            strongrefs=100, rotate_strongrefs=False
+        )
         file_registry = self.file_registry = FileRegistry()
         vfile_registry = self.vfile_registry = VFileRegistry()
         future_registry = self.future_registry = FutureRegistry()
@@ -153,8 +156,13 @@ class Representer:
 
         @embed.js_embed.variant
         def js_embed(self, fn: Union[MethodType, FunctionType]):
-            method_id = callback_registry.register(fn)
+            method_id = object_registry.register(fn)
             return f"$$BEAR.func({method_id})"
+
+        @js_embed.register
+        def js_embed(self, ref: Reference):
+            obj_id = object_registry.register(ref.datum)
+            return f"$$BEAR.ref({obj_id})"
 
         @js_embed.register
         def js_embed(self, pth: Path):
@@ -182,7 +190,7 @@ class Representer:
 
         @embed.attr_embed.variant
         def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
-            method_id = callback_registry.register(fn)
+            method_id = object_registry.register(fn)
             if attr.startswith("hx_"):
                 return f"{route}/method/{method_id}"
             else:

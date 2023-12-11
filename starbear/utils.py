@@ -9,6 +9,8 @@ from mimetypes import guess_type
 
 from hrepr.resource import JSExpression
 
+from .ref import Reference
+
 
 class StarbearHandler(logging.StreamHandler):
     def format(self, record):
@@ -69,8 +71,8 @@ class Queue(asyncio.Queue):
         self._finished.clear()
         self._wakeup_next(self._getters)
 
-    def tag(self, tag):
-        return ClientWrap(self, partial=[tag], pack=True)
+    def tag(self, arg):
+        return ClientWrap(self, pack=True).tag(arg)
 
     def wrap(self, **options):
         return ClientWrap(self, **options)
@@ -147,6 +149,9 @@ class ClientWrap:
 
         self.func = func
         self.options = options
+
+    def tag(self, arg):
+        return self.wrap(partial=[Reference(arg)])
 
     def wrap(self, **options):
         return type(self)(self, **options)

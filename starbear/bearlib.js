@@ -389,6 +389,17 @@ class LocalPromise {
 }
 
 
+class RemoteReference {
+    constructor(id) {
+        this.id = id;
+    }
+
+    toJSON() {
+        return {"%": "Reference", id: this.id}
+    }
+}
+
+
 export class Starbear {
     constructor(route) {
         this.route = route;
@@ -412,6 +423,10 @@ export class Starbear {
                 body: JSON.stringify(args),
             })
         }
+    }
+
+    ref(id) {
+        return new RemoteReference(id);
     }
 
     async cb(selector, extractor, promise) {

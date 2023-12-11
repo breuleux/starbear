@@ -1,5 +1,6 @@
 from hrepr import H
 
+from .ref import Reference
 from .serve import (
     ConfigurableBear,
     ConfigurableSimpleBear,
