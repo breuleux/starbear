@@ -20,6 +20,7 @@ bearlibErrorCSS.replaceSync(`
     border: 2px solid red;
     padding: 3px;
     max-height: 300px;
+    max-width: 90vw;
     overflow: scroll;
     white-space: pre;
     color: black;
