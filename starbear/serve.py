@@ -3,6 +3,7 @@ import base64
 import inspect
 import json
 import traceback
+from dataclasses import dataclass
 from functools import cached_property, wraps
 from itertools import count
 from pathlib import Path
@@ -46,6 +47,31 @@ def register_constructor(key):
 @register_constructor("HTMLElement")
 def _(page, selector):
     return page[selector]
+
+
+@dataclass
+class BrowserEvent:
+    type: str = None
+    inputType: str = None
+    button: int = None
+    buttons: int = None
+    shiftKey: bool = None
+    altKey: bool = None
+    ctrlKey: bool = None
+    metaKey: bool = None
+    key: str = None
+    target: Page = None
+    form: Page = None
+    value: object = None
+    refs: list = None
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+
+@register_constructor("Event")
+def _(page, data):
+    return BrowserEvent(**data)
 
 
 @register_constructor("Promise")

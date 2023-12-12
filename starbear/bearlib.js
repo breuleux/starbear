@@ -77,19 +77,22 @@ HTMLFormControlsCollection.prototype.toJSON = function (event) {
 
 Event.prototype.toJSON = function () {
     return {
-        type: this.type,
-        inputType: this.inputType,
-        button: this.button,
-        buttons: this.buttons,
-        shiftKey: this.shiftKey,
-        altKey: this.altKey,
-        ctrlKey: this.ctrlKey,
-        metaKey: this.metaKey,
-        key: this.key,
-        target: this.target,
-        form: this.target.elements,
-        value: this.target.value,
-        refs: this.$refs,
+        "%": "Event",
+        data: {
+            type: this.type,
+            inputType: this.inputType,
+            button: this.button,
+            buttons: this.buttons,
+            shiftKey: this.shiftKey,
+            altKey: this.altKey,
+            ctrlKey: this.ctrlKey,
+            metaKey: this.metaKey,
+            key: this.key,
+            target: this.target,
+            form: this.target.elements,
+            value: this.target.value,
+            refs: this.$refs,
+        }
     }
 }
 
