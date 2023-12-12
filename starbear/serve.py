@@ -22,6 +22,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from .constructors import construct
 from .page import Page
 from .repr import Representer
 from .templating import template
@@ -32,59 +33,7 @@ here = Path(__file__).parent
 
 _count = count()
 
-construct = {}
 dev_injections = []
-
-
-def register_constructor(key):
-    def deco(fn):
-        construct[key] = fn
-        return fn
-
-    return deco
-
-
-@register_constructor("HTMLElement")
-def _(page, selector):
-    return page[selector]
-
-
-@dataclass
-class BrowserEvent:
-    type: str = None
-    inputType: str = None
-    button: int = None
-    buttons: int = None
-    shiftKey: bool = None
-    altKey: bool = None
-    ctrlKey: bool = None
-    metaKey: bool = None
-    key: str = None
-    target: Page = None
-    form: Page = None
-    value: object = None
-    refs: list = None
-
-    def __getitem__(self, item):
-        return getattr(self, item)
-
-
-@register_constructor("Event")
-def _(page, data):
-    return BrowserEvent(**data)
-
-
-@register_constructor("Promise")
-def _(page, id):
-    async def resolve(value):
-        await page.bearlib.resolveLocalPromise(id, value)
-
-    return resolve
-
-
-@register_constructor("Reference")
-def _(page, id):
-    return page.representer.object_registry.resolve(id)
 
 
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
@@ -401,9 +350,7 @@ class Cub(BasicBear):
 
     def object_hook(self, dct):
         if "%" in dct:
-            args = dict(dct)
-            args.pop("%")
-            return construct[dct["%"]](self.page, **args)
+            return construct(self.page, dct)
         else:
             return dct
 

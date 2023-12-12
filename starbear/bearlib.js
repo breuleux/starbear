@@ -56,25 +56,6 @@ HTMLElement.prototype.toJSON = function () {
 }
 
 
-HTMLFormControlsCollection.prototype.toJSON = function (event) {
-    const results = {};
-    for (let [k, v] of Object.entries(this)) {
-        if (isNaN(k)) {
-            // Non-numeric key
-            results[k] = v.type === "checkbox" ? v.checked : v.value;
-        }
-        else if (v.name) {
-            let name = v.name;
-            v = this[v.name];
-            results[name] = v.type === "checkbox" ? v.checked : v.value;
-        }
-    }
-    event = event || window.event
-    results.$submit = (event && event.type == "submit");
-    return results;
-}
-
-
 Event.prototype.toJSON = function () {
     return {
         "%": "Event",
@@ -89,9 +70,48 @@ Event.prototype.toJSON = function () {
             metaKey: this.metaKey,
             key: this.key,
             target: this.target,
-            form: this.target.elements,
+            form: this.target.elements && (new FormData(this)),
             value: this.target.value,
             refs: this.$refs,
+        }
+    }
+}
+
+
+class FormData {
+    constructor(event) {
+        let element = event.target;
+        while (!(element.tagName === "FORM") && (element = element.parentNode)) {
+        }
+        this.target = element;
+        this.submit = (event && event.type == "submit");
+        this.refs = event.$refs;
+        this.data = {};
+
+        if (element) {
+            const form = element.elements;
+            for (let [k, v] of Object.entries(form)) {
+                if (isNaN(k)) {
+                    // Non-numeric key
+                    this.data[k] = v.type === "checkbox" ? v.checked : v.value;
+                }
+                else if (v.name) {
+                    let name = v.name;
+                    v = form[v.name];
+                    this.data[name] = v.type === "checkbox" ? v.checked : v.value;
+                }
+            }
+        }
+    }
+
+    toJSON() {
+        console.log(this);
+        return {
+            "%": "FormData",
+            "data": this.data,
+            "target": this.target,
+            "submit": this.submit,
+            "refs": this.refs,
         }
     }
 }
@@ -566,13 +586,7 @@ export class Starbear {
         function getform(f) {
             return function (event) {
                 // TODO: proper error when this is not an event
-                let element = event.target;
-                while (!(element.tagName === "FORM") && (element = element.parentNode)) {
-                }
-                const form = element ? element.elements.toJSON(event) : {};
-                form.$target = element.toJSON();
-                form.$refs = event.$refs;
-                return f.call(this, form);
+                return f.call(this, new FormData(event));
             }
         }
 
@@ -591,8 +605,10 @@ export class Starbear {
                         refs.push(lnk);
                     }
                 } while ((element = element.parentNode) instanceof Element);
-                event.$refs = refs;
-                return f.call(this, event);
+                if (refs.length > 0) {
+                    event.$refs = refs;
+                    return f.call(this, event);
+                }
             }
         }
 

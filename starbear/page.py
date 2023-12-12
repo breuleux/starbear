@@ -220,6 +220,13 @@ class Page:
     def toggle(self, toggle, value=None):
         return self.bearlib.toggle(self, toggle, value)
 
+    def __hrepr__(self, H, hrepr):
+        return hrepr.make.instance(
+            title="Page",
+            fields=[["selector", self.selector]],
+            delimiter=":",
+        )
+
     def __js_embed__(self, representer):
         if self.selector is None:
             raise Exception(
