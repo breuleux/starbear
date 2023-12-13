@@ -1,4 +1,5 @@
 import asyncio as aio
+import traceback
 from pathlib import Path
 
 from hrepr import H, Tag
@@ -17,6 +18,7 @@ class Page:
         session={},
         track_history=True,
         sent_resources=None,
+        debug=False,
         app=None,
         loop=None,
     ):
@@ -29,6 +31,7 @@ class Page:
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
+        self.debug = debug
         self.app = app
         self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
@@ -82,12 +85,20 @@ class Page:
     def without_history(self):
         return self.with_history(False)
 
+    def _done_cb(self, future):
+        self.tasks.discard(future)
+        if exc := future.exception():
+            self.error(
+                message="An error occurred trying to represent data.",
+                exception=exc,
+            )
+
     def _push(self, coro):
         if aio._get_running_loop() is None:
             aio._set_running_loop(self.loop)
         task = aio.create_task(coro)
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        task.add_done_callback(self._done_cb)
 
     async def sync(self):
         for task in list(self.tasks):
@@ -180,6 +191,30 @@ class Page:
         for element in elements:
             element = self._to_element(element)
             self.put_nowait(element, method)
+
+    def error(self, message, debug=None, exception=None):
+        if not isinstance(message, str):
+            message = self.representer.hrepr(message)
+        if self.debug:
+            message = H.div(
+                H.div(message),
+                H.div(debug) if debug else "",
+                H.div(
+                    traceback.format_exception(
+                        etype=type(exception),
+                        value=exception,
+                        tb=exception.__traceback__,
+                    )
+                )
+                if exception
+                else "",
+            )
+        self.queue_command("error", content=str(message))
+
+    def log(self, message):
+        if not isinstance(message, str):
+            message = self.representer.hrepr(message)
+        self.queue_command("log", content=str(message))
 
     def print_html(self, html, selector=None, method="beforeend", history=None):
         self.queue_command(

@@ -7,29 +7,6 @@
 
 const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
-const bearlibErrorCSS = new CSSStyleSheet();
-
-bearlibErrorCSS.replaceSync(`
-#starbear-error:empty {
-    display: none;
-}
-#starbear-error {
-    position: absolute;
-    right: 0;
-    top: 0;
-    border: 2px solid red;
-    padding: 3px;
-    max-height: 300px;
-    max-width: 90vw;
-    overflow: scroll;
-    white-space: pre;
-    color: black;
-    background: white;
-}
-`)
-
-document.adoptedStyleSheets = [...document.adoptedStyleSheets, bearlibErrorCSS];
-
 
 /////////////
 // Globals //
@@ -105,7 +82,6 @@ class FormData {
     }
 
     toJSON() {
-        console.log(this);
         return {
             "%": "FormData",
             "data": this.data,
@@ -113,6 +89,125 @@ class FormData {
             "submit": this.submit,
             "refs": this.refs,
         }
+    }
+}
+
+
+///////////////////////
+// Log/error display //
+///////////////////////
+
+
+export default class Tabular {
+    constructor(element, options) {
+        this.element = element;
+        this.active = null;
+        this.options = options;
+        this.areaData = {};
+        this.element.classList.add("bear--tabular");
+        this.buttons = document.createElement("div");
+        this.buttons.classList.add("bear--tabular-buttons");
+        this.areas = document.createElement("div");
+        this.areas.classList.add("bear--tabular-areas");
+        this.element.append(this.areas, this.buttons);
+        this.ex = this.addButton("×", this.clear.bind(this), "hidden");
+        for (let tab of this.options.tabs) {
+            this.addArea(tab);
+        }
+    }
+
+    clear() {
+        for (let area of Object.values(this.areaData)) {
+            area.element.innerHTML = "";
+            area.button.classList.add("bear--empty");
+        }
+        this.activate(null);
+        this.ex.classList.add("bear--hidden");
+    }
+
+    setOption(name, optionName, optionValue) {
+        this.areaData[name][optionName] = optionValue
+    }
+
+    activate(name, toggle=false) {
+        this.active = null;
+        for (let area of Object.values(this.areaData)) {
+            if (area.name === name) {
+                area.button.classList.remove("bear--new");
+            }
+            if (area.name === name && (!toggle || !area.active)) {
+                area.container.classList.add("bear--active");
+                area.button.classList.add("bear--active");
+                area.active = true;
+                this.active = name;
+            }
+            else {
+                area.container.classList.remove("bear--active");
+                area.button.classList.remove("bear--active");
+                area.active = false;
+            }
+        }
+    }
+
+    wake(tab) {
+        let area = this.areaData[tab];
+        area.button.classList.remove("bear--empty");
+        area.button.classList.add("bear--new");
+        this.ex.classList.remove("bear--hidden");
+    }
+
+    write(tab, node, append=false) {
+        let area = this.areaData[tab];
+        if (!append) {
+            area.element.innerHTML = "";
+            if (!node) {
+                area.button.classList.add("bear--empty");
+                return;
+            }
+        }
+        let container = document.createElement("div");
+        area.element.append(container);
+        container.append(node);
+        let excess = area.element.children.length - area.maxSize;
+        if (excess > 0) {
+            for (let i = 0; i < excess; i++) {
+                area.element.children[0].remove();
+            }
+        }
+        this.wake(tab);
+        if (area.autoOpen && !this.active) {
+            this.activate(area.name);
+        }
+    }
+
+    addArea(options) {
+        let container = document.createElement("div");
+        container.classList.add("bear--tabular-area-container");
+        container.style.border = `2px solid ${options.border}`;
+        let area = document.createElement("div");
+        area.classList.add("bear--tabular-area");
+        container.append(area);
+        this.areas.append(container);
+        options.element = area;
+        options.container = container;
+        options.button = this.addButton(
+            options.icon,
+            _ => this.activate(options.name, true),
+            "empty",
+        );
+        this.areaData[options.name] = options;
+    }
+
+    addButton(icon, action, extraClass=false) {
+        let button = document.createElement("div");
+        button.classList.add("bear--tabular-button");
+        if (extraClass) {
+            button.classList.add(`bear--${extraClass}`);
+        }
+        button.innerHTML = icon;
+        button.onclick = action;
+        this.buttons.append(button);
+        return button;
     }
 }
 
@@ -179,6 +274,20 @@ function incorporate(target, template, method, params) {
 }
 
 
+function distribute(html, targets, method, sock, params) {
+    const template = document.createElement("div");
+    template.innerHTML = html;
+    activateScripts(template);
+    if (sock && params.add_onload_hooks) {
+        hookOnloads(template, sock);
+    }
+    for (let target of targets) {
+        incorporate(target, template, method, params);
+    }
+}
+
+
+
 //////////////////////////////
 // Socket-received commands //
 //////////////////////////////
@@ -186,16 +295,8 @@ function incorporate(target, template, method, params) {
 
 let commands = {
     put(sock, params) {
-        const template = document.createElement("div");
-        template.innerHTML = params.content;
-        activateScripts(template);
-        if (params.add_onload_hooks) {
-            hookOnloads(template, sock);
-        }
         const targets = document.querySelectorAll(params.selector);
-        for (let target of targets) {
-            incorporate(target, template, params.method, params);
-        }
+        distribute(params.content, targets, params.method, sock, params);
     },
 
     resource(sock, params) {
@@ -215,6 +316,18 @@ let commands = {
         func.call(context);
     },
 
+    log(sock, params) {
+        let node = document.createElement("div");
+        node.innerHTML = params.content;
+        sock.tabs.write("logs", node, true);
+    },
+
+    error(sock, params) {
+        let node = document.createElement("div");
+        node.innerHTML = params.content;
+        sock.tabs.write("errors", node);
+    },
+
     reload(sock, params) {
         window.location.reload();
     }
@@ -231,9 +344,28 @@ class Socket {
         this.queue = [];
         this.waitPromise = null;
         this.waitReasons = [];
-        this.errorDiv = document.createElement("div");
-        this.errorDiv.id = ["starbear-error"]
-        document.body.appendChild(this.errorDiv);
+        let errorDiv = document.createElement("div");
+        document.body.appendChild(errorDiv);
+        this.tabs = new Tabular(
+            errorDiv,
+            {
+                tabs: [
+                    {
+                        name: "errors",
+                        icon: "🐞",
+                        border: "red",
+                        autoOpen: true,
+                    },
+                    {
+                        name: "logs",
+                        icon: "📘",
+                        border: "blue",
+                        autoOpen: true,
+                        maxSize: 100,
+                    },
+                ]
+            }
+        );
         this.loop();
     }
 
@@ -308,13 +440,13 @@ class Socket {
     }
 
     error(errorText) {
-        this.errorDiv.innerHTML = `<div id="starbear-connection-error">${errorText}</div>`;
+        this.tabs.write("errors", errorText);
     }
 
     onopen() {
         this.tries = 0;
         this.send({type: "start", number: this.connectionCount});
-        this.errorDiv.querySelector("#starbear-connection-error")?.remove();
+        this.tabs.write("errors", "");
     }
 
     onmessage(event) {

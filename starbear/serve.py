@@ -2,14 +2,14 @@ import asyncio as aio
 import base64
 import inspect
 import json
+import os
 import traceback
-from dataclasses import dataclass
 from functools import cached_property, wraps
 from itertools import count
 from pathlib import Path
 from uuid import uuid4 as uuid
 
-from hrepr import Tag
+from hrepr import H, Tag
 from starlette.exceptions import HTTPException
 from starlette.responses import (
     FileResponse,
@@ -27,7 +27,6 @@ from .page import Page
 from .repr import Representer
 from .templating import template
 from .utils import Queue, keyword_decorator, logger
-from .wrap import with_error_display
 
 here = Path(__file__).parent
 
@@ -288,12 +287,16 @@ class Cub(BasicBear):
         session={},
         template=None,
         template_params={},
+        debug=None,
     ):
         super().__init__(
             template=template or (here / "base-template.html"),
             template_params=template_params,
         )
         self.mother = mother
+        self.debug = (
+            bool(int(os.environ.get("STARBEAR_DEBUG", 0))) if debug is None else debug
+        )
         self.fn = mother.fn
         self.process = process
         self.query_params = query_params
@@ -312,6 +315,7 @@ class Cub(BasicBear):
             query_params=query_params,
             session=session,
             app=mother.app,
+            debug=self.debug,
         )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
@@ -345,6 +349,10 @@ class Cub(BasicBear):
             await self.page.sync()
         except Exception as exc:
             self.log("error", str(exc), traceback=traceback)
+            self.page.error(
+                message=H.b("An error occurred. You may need to refresh the page."),
+                exception=exc,
+            )
         finally:
             self.log("info", "Finished process")
 
@@ -528,9 +536,7 @@ class ConfigurableSimpleBear(LoneBear):
 
 
 @keyword_decorator
-def bear(fn, display_errors=True, **kwargs):
-    if display_errors:
-        fn = with_error_display(fn)
+def bear(fn, **kwargs):
     return MotherBear(fn, **kwargs)
 
 
