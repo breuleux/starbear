@@ -139,7 +139,6 @@ class BasicBear(AbstractBear):
     def __init__(self, template, template_params):
         super().__init__()
         self.route = None
-        self._template_location = template.parent
         self._template = template
         self._template_params = {
             "title": "Starbear",
@@ -157,14 +156,23 @@ class BasicBear(AbstractBear):
             + self.representer.file_registry.register(where / name)
         )
 
-    def template(self, **params):
-        return template(
-            self._template,
+    def template(self, template_path=None, **params):
+        template_path = template_path or self._template
+        location = template_path.parent
+        agg_params = {
             **self._template_params,
+            "route": self.route,
+            "dev": dev_injections,
             **params,
-            route=self.route,
-            dev=dev_injections,
-            _asset=lambda name: self.template_asset(name, self._template_location),
+        }
+        return template(
+            template_path,
+            **agg_params,
+            _asset=lambda name: self.template_asset(name, location),
+            _embed=lambda name: self.template(
+                location / name,
+                **params,
+            ),
             _std=lambda name: self.template_asset(name, here),
         )
 
