@@ -201,9 +201,9 @@ class Page:
                 H.div(debug) if debug else "",
                 H.div(
                     traceback.format_exception(
-                        etype=type(exception),
-                        value=exception,
-                        tb=exception.__traceback__,
+                        type(exception),
+                        exception,
+                        exception.__traceback__,
                     )
                 )
                 if exception

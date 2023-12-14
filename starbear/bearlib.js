@@ -560,6 +560,7 @@ export class Starbear {
     constructor(route) {
         this.route = route;
         this.socket = new Socket(`${this.route}/socket`);
+        this.tabs = this.socket.tabs;
         this.timers = {};
         this.localPromises = {};
         this.promise = reqid => new BearPromise(this, reqid);
