@@ -572,13 +572,17 @@ export class Starbear {
 
     func(id) {
         return async (...args) => {
-            return await fetch(`${this.route}/method/${id}`, {
+            let response = await fetch(`${this.route}/method/${id}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(args),
             })
+            if (!response.ok) {
+                this.socket.error(await response.text());
+            }
+            return response;
         }
     }
 

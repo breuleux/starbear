@@ -183,7 +183,11 @@ class BasicBear(AbstractBear):
     @routeinfo("/{method:int}", methods=["GET", "POST"])
     async def route_method(self, request):
         method_id = request.path_params["method"]
-        method = self.representer.object_registry.resolve(method_id)
+        try:
+            method = self.representer.object_registry.resolve(method_id)
+        except KeyError:
+            msg = "Method not found. It may have been garbage-collected."
+            return PlainTextResponse(msg, status_code=404)
         try:
             args = await self.json(request)
         except json.JSONDecodeError:
