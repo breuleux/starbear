@@ -26,7 +26,7 @@ from .constructors import construct
 from .page import Page
 from .repr import Representer
 from .templating import template
-from .utils import Queue, keyword_decorator, logger
+from .utils import Queue, format_error, keyword_decorator, logger
 
 here = Path(__file__).parent
 
@@ -176,6 +176,15 @@ class BasicBear(AbstractBear):
             _std=lambda name: self.template_asset(name, here),
         )
 
+    def error_response(self, code, message, debug=None, exception=None):
+        msg = format_error(
+            message=message,
+            debug=debug,
+            exception=exception,
+            show_debug=self.debug,
+        )
+        return JSONResponse({"message": msg}, status_code=code)
+
     ################
     # Basic routes #
     ################
@@ -186,13 +195,29 @@ class BasicBear(AbstractBear):
         try:
             method = self.representer.object_registry.resolve(method_id)
         except KeyError:
-            msg = "Method not found. It may have been garbage-collected."
-            return PlainTextResponse(msg, status_code=404)
+            return self.error_response(
+                code=404,
+                message="Application error: method not found.",
+                debug=(
+                    "It may have been garbage-collected."
+                    " References in the HTML trees you create are weak,"
+                    " so you have to keep strong references to ensure they"
+                    " are not collected. Likely culprits are lambda"
+                    " expressions or nested functions."
+                ),
+            )
         try:
             args = await self.json(request)
         except json.JSONDecodeError:
             args = [await request.body()]
-        result = method(*args, **request.query_params)
+        try:
+            result = method(*args, **request.query_params)
+        except Exception as exc:
+            return self.error_response(
+                code=500,
+                message="Application error.",
+                exception=exc,
+            )
         if inspect.iscoroutine(result):
             result = await result
         if isinstance(result, Tag):
@@ -510,7 +535,13 @@ class MotherBear(AbstractBear):
                     await request.accept()
                     await request.close(code=3002, reason="Missing application")
                 else:
-                    return JSONResponse({"missing": process}, status_code=404)
+                    return JSONResponse(
+                        {
+                            "missing": process,
+                            "message": "Session killed. Please refresh.",
+                        },
+                        status_code=404,
+                    )
             else:
                 return await method(cub, request)
 

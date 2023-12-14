@@ -84,6 +84,18 @@ class Queue(asyncio.Queue):
         return await self.get()
 
 
+def format_error(message, debug=None, exception=None, show_debug=False):
+    if show_debug:
+        tb = exception and traceback.format_exception(
+            type(exception),
+            exception,
+            exception.__traceback__,
+        )
+        parts = [message, debug, tb and "\n".join(tb)]
+        message = "\n\n".join(p for p in parts if p)
+    return message
+
+
 class FeedbackQueue(Queue):
     pass
 

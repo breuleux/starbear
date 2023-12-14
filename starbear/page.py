@@ -6,6 +6,8 @@ from hrepr import H, Tag
 from hrepr.hgen import ResourceDeduplicator
 from hrepr.resource import Resource
 
+from starbear.utils import format_error
+
 
 class Page:
     def __init__(
@@ -194,22 +196,10 @@ class Page:
 
     def error(self, message, debug=None, exception=None):
         if not isinstance(message, str):
-            message = self.representer.hrepr(message)
-        if self.debug:
-            message = H.div(
-                H.div(message),
-                H.div(debug) if debug else "",
-                H.div(
-                    traceback.format_exception(
-                        type(exception),
-                        exception,
-                        exception.__traceback__,
-                    )
-                )
-                if exception
-                else "",
-            )
-        self.queue_command("error", content=str(message))
+            message = str(self.representer.hrepr(message))
+        self.queue_command(
+            "error", content=format_error(message, debug, exception, self.debug)
+        )
 
     def log(self, message):
         if not isinstance(message, str):
