@@ -96,6 +96,53 @@ You *can* add a title and a style with ``page["head"].print``, but it may cause 
     If you want to refer to an external website, a CDN, or a route on the server that is not controlled by Starbear, use a string, do not use ``Path``.
 
 
+Templating
+++++++++++
+
+You can use your own templates. For example:
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    @bear(template=Path("my-template.html"), template_params={"adjective": "awesome"})
+    async def app(page):
+        page.print("I think you're cute")
+        page["#top"].print("Dear user,")
+
+Then, you can define your template like this:
+
+.. code-block:: html
+
+    <!DOCTYPE html>
+    <html>
+        <head>
+            <meta http-equiv="Content-type" content="text/html" charset="UTF-8" />
+            <title>My {{adjective}} page</title>
+            <link rel="stylesheet" href="{{asset:my-style.css}}" />
+            {{bearlib}}
+        </head>
+        <body>
+            {{dev}}
+            <div id="top"></div>
+        </body>
+    </html>
+
+* ``{{bearlib}}``: **must** be included somewhere in order for the app to work: otherwise ``page.print`` will do nothing.
+* ``{{asset:file.css}}`` must be a path to a file and is relative to the template file.
+* ``{{embed:file.html}}`` must be a path to another template, relative to the template file. The other template's contents will be inserted at that location.
+* ``{{route}}`` is the route to this page, if that may be useful.
+* ``{{dev}}`` is optional, it is code to inject in development mode (e.g. a button to restart server).
+
+You can also use templates dynamically. For example, if you have a header in ``header.html``, this code would replace the contents of ``#top`` by the filled-in template.
+
+.. code-block:: python
+    page["#top"].template(
+        Path("header.html"),
+        email=user_email,
+    )
+
+
 Updating the page
 -----------------
 
@@ -116,6 +163,7 @@ Now let's get to something more interesting. How do we update the page over time
             page["#count"].set(str(i))
 
 By indexing ``page`` with a selector, we obtain an object with methods that let us set the contents of the appropriate elements. The selector is not limited to ids, you can use any valid CSS selector. For example, you can print to ``page["head"]``, or to ``page[".article div"]``. The latter would print to every single div inside any element that has the class ``article``.
+
 
 Using autoid
 ++++++++++++
