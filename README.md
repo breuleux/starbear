@@ -11,9 +11,7 @@ Starbear allow creating interactive local web applications in Python very easily
 * Call Python functions from JS, call JS functions from Python.
 * No subroutes: starbear automatically creates the endpoints you need.
 
-**Do not use this in production (yet):** Starbear is a beta, experimental framework. It is not highly efficient and it may leak memory easily (because it would basically require a distributed garbage collector not to). Use this for small apps that you want to run locally or that don't need high uptime and reliability. In any case, the more Starbear is tested, the more confident we can be about its limitations and the better it will get.
-
-Also the error reporting is not the best right now. Check the developer console in your browser.
+**Be careful about using this in production:** Starbear is a beta, experimental framework. It is not highly efficient and may not scale very well, therefore you should use this for small apps that you want to run locally or that don't need high uptime and reliability.
 
 
 ## Install

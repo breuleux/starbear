@@ -76,22 +76,18 @@ If you have HTML in a string and you want to embed it as-is, use ``H.raw(html)``
 Title and style
 +++++++++++++++
 
-* Use ``page["head"].print`` to add tags to the ``<head>`` of the page.
-* Use ``Path("path/to/file")`` to include files from the filesystem.
+You *can* add a title and a style with ``page["head"].print``, but it may cause some flickering, so there is a better way:
+
+* Use ``@bear(title="xyz")`` to set the page's title from inception.
+* Use ``page.add_resources(path_to_style, path_to_script, path_to_icon ...)`` to add resources. Starbear will wait until they are loaded to process further actions.
 
 .. code-block:: python
 
     from pathlib import Path
 
-    @bear
+    @bear(title="My great page!")
     async def app(page):
-        page["head"].print(
-            H.title("My great page!"),
-            H.link(
-                rel="stylesheet",
-                href=Path("./style.css"),
-            )
-        )
+        page.add_resources(Path("./style.css"))
         page.print(H.p("What is the coolest animal? Do you know?"))
 
 .. note::
@@ -119,7 +115,7 @@ Now let's get to something more interesting. How do we update the page over time
             await asyncio.sleep(1)
             page["#count"].set(str(i))
 
-By indexing ``page`` with a selector, we obtain an object with methods that let us set the contents of the appropriate elements. The selector is not limited to ids (as we saw earlier with ``page["head"].print(H.title(...))``).
+By indexing ``page`` with a selector, we obtain an object with methods that let us set the contents of the appropriate elements. The selector is not limited to ids, you can use any valid CSS selector. For example, you can print to ``page["head"]``, or to ``page[".article div"]``. The latter would print to every single div inside any element that has the class ``article``.
 
 Using autoid
 ++++++++++++
@@ -148,7 +144,7 @@ So far we've only made passive pages. Here is how to process a button click from
 
 .. code-block:: python
 
-    @bear
+    @bear(strongrefs=True)
     async def app(page):
         nclicks = 0
         def increment(event):
@@ -169,6 +165,8 @@ So far we've only made passive pages. Here is how to process a button click from
         )
 
 It's very straightforward: when the user clicks, it sends the click event to the ``increment`` function on the server, which increments the current count and puts it in the ``clickspan`` element.
+
+The ``strongrefs=True`` argument to ``@bear`` serves the purpose of keeping the nested ``increment`` function alive after the function returns. Starbear normally keeps weak references to the handlers to limit memory leaks, but with the strongrefs parameters, it will keep the function alive for as long as the user is on the page.
 
 
 Using queues
@@ -314,6 +312,49 @@ The special field ``$submit`` contains ``True`` if the triggering event was a su
 
     Naively, this could be problematic, because later events could arrive after earlier events, but in fact Starbear will make sure that the ``onsubmit`` event cancels all outstanding timers for that queue.
 
+References
+++++++++++
+
+It is possible to attach *references* to Python objects to various elements, and then to retrieve them. For example:
+
+.. code-block:: python
+
+    from dataclasses import dataclass
+    from starbear import Queue, Reference
+
+    @dataclass
+    class Person:
+        name: str
+        age: int
+
+    @bear
+    async def app(page):
+        q = Queue()
+        persons = [Person("Alice", 29), Person("Barbara", 34)]
+        page.print(
+            H.div(
+                [
+                    H.button(person.name, __ref=Reference(person))
+                    for person in persons
+                ],
+                onclick=q.wrap(refs=True)
+            )
+        )
+        async for event in q:
+            person = event.ref
+            page.print(H.div(person.name, " is ", person.age, " years old."))
+
+The ``__ref`` attribute (which is translated to ``--ref`` in HTML) is an automatically generated ID number that is exchanged back and forth.
+
+``q.wrap(refs=True)`` packages the hierarchy of ``__ref`` attributes from whichever element is clicked; if there are none, no event is generated. ``event.ref`` will retrieve the closest ref in the hierarchy, but you can see the whole hierarchy in ``event.refs``.
+
+.. note::
+    Starbear only keeps weak references to these objects, therefore you must make sure you keep strong references yourself through the lifetime of the function.
+
+    Objects that cannot have weak references are kept in a limited buffer of strong references. An error will be displayed if that limit is busted.
+
+    Use ``@bear(strongrefs=True)`` to force Starbear to keep strong references across the board, but be aware that memory can leak easily this way if you do complex things, even if everything is ultimately reclaimed when the user disconnects.
+
 
 Using libraries
 ---------------
@@ -358,30 +399,30 @@ Here is what Starbear does when this structure is printed to the page:
     As explained in the title and style section, you may use ``pathlib.Path`` to refer to local files. For example, if you want to load the katex script from the server's local filesystem instead of going through a CDN: ``"script": Path("./assets/katex.js")``.
 
 
-.. EcmaScript Modules
-.. ++++++++++++++++++
+EcmaScript Modules
+++++++++++++++++++
 
-.. You can also use the ESM version of Katex by setting ``module`` instead of ``script``:
+You can also use the ESM version of Katex by setting ``module`` instead of ``script``:
 
-.. .. code-block:: python
+.. code-block:: python
 
-..     page.print(
-..         H.div(
-..             ZZZZZ__constructor = {
-..                 "module": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.mjs",
-..                 "symbol": "default.render",
-..                 "arguments": ["c = \\pm\\sqrt{a^2 + b^2}", H.self()],
-..                 "stylesheet": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css",
-..             }
-..         )
-..     )
+    page.print(
+        H.div(
+            __constructor = {
+                "module": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.mjs",
+                "symbol": "default.render",
+                "arguments": ["c = \\pm\\sqrt{a^2 + b^2}", H.self()],
+                "stylesheet": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css",
+            }
+        )
+    )
 
 
-.. The value of ``symbol`` is used to determine how to import the functionality:
+The value of ``symbol`` is used to determine how to import the functionality:
 
-.. * ``symbol=None`` (the default if left out): ``import constructor from 'module'; constructor(...)``
-.. * ``symbol="render"``: ``import {render} from 'module'; render(...)``
-.. * ``symbol="x.y.z"``: ``import {x} from 'module'; x.y.z(...)``
-.. * ``symbol="default.y.z"``: ``import dflt from 'module'; dflt.y.z(...)``
+* ``symbol=None`` (the default if left out): ``import constructor from 'module'; constructor(...)``
+* ``symbol="render"``: ``import {render} from 'module'; render(...)``
+* ``symbol="x.y.z"``: ``import {x} from 'module'; x.y.z(...)``
+* ``symbol="default.y.z"``: ``import dflt from 'module'; dflt.y.z(...)``
 
-.. The documentation for how to use the ESM version of a library is not always the best, but it's preferable if you can make it work, because it does not pollute the global namespace. You also don't need to specify the ``symbol`` key if the default export is the right constructor to use.
+The documentation for how to use the ESM version of a library is not always the best, but it's preferable if you can make it work, because it does not pollute the global namespace. You also don't need to specify the ``symbol`` key if the default export is the right constructor to use.
