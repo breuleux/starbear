@@ -209,6 +209,10 @@ class Page:
             history=history,
         )
 
+    def template(self, template_file, integration_method="innerHTML", **params):
+        filled = self.instance.template(template_file, **params)
+        self.put_nowait(filled, integration_method)
+
     def set(self, element):
         element = self._to_element(element)
         self.put_nowait(element, "innerHTML")
