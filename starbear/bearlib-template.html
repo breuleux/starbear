@@ -1,0 +1,9 @@
+<inline>
+    <link rel="stylesheet" href="{{std:bearstyle.css}}" />
+    <script type="module">
+        import { Starbear } from "{{std:bearlib.js}}";
+        let bear = new Starbear("{{route}}");
+        window.$$BEAR = bear;
+        {{connect_line}};
+    </script>
+</inline>

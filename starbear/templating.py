@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Union
 
 from hrepr import H, Tag
-from lxml.html import html5parser
+from lxml import etree
 from ovld import ovld
 
 
@@ -30,7 +30,7 @@ def _parse_template(path_or_string):
     else:
         raise TypeError("path_or_string argument should be a Path or a str")
 
-    html = html5parser.fromstring(source)
+    html = etree.fromstring(source)
     return _html_to_h(html)
 
 
@@ -70,7 +70,7 @@ def _html_to_h(etree):
     for subtree in etree:
         children.append(_html_to_h(subtree))
         if subtree.tail:
-            children.append(subtree.tail)
+            children.append(_extract_placeholders(subtree.tail))
     return base_node.fill(
         attributes=dict(
             (x, True if y == "" else _extract_placeholders(y, single=True))
@@ -78,6 +78,43 @@ def _html_to_h(etree):
         ),
         children=children,
     )
+
+
+_cached_templates = {}
+
+
+class Template:
+    def __init__(self, tpl, location=None):
+        self.location = location
+        if isinstance(tpl, Tag):
+            self.template = tpl
+        elif isinstance(tpl, Path):
+            self.location = location or tpl.parent
+            tpl = _parse_template(tpl)
+        elif isinstance(tpl, str):
+            tpl = _parse_template(tpl)
+        self.template = tpl
+
+    def __call__(self, **values):
+        values.setdefault("_variable", lambda name: values[name])
+        if self.location:
+
+            def embed(name):
+                return template(
+                    self.location / name,
+                    **values,
+                )
+
+            values.setdefault("_embed", embed)
+        return _template(self.template, values)
+
+
+def template(tpl, nocache=False, /, **values):
+    if isinstance(tpl, Tag):
+        return Template(tpl)(**values)
+    if tpl not in _cached_templates or nocache:
+        _cached_templates[tpl] = Template(tpl)
+    return _cached_templates[tpl](**values)
 
 
 @ovld
@@ -105,29 +142,21 @@ def _template(node: Tag, values: dict):
 
 
 @ovld
+def _template(tpl: Template, values: dict):
+    return tpl(**values)
+
+
+@ovld
 def _template(node: object, values: dict):
     return node
 
 
-_cached_templates = {}
-
-
-class Template:
-    def __init__(self, tpl):
-        if isinstance(tpl, Tag):
-            self.template = tpl
-        elif isinstance(tpl, (str, Path)):
-            tpl = _parse_template(tpl)
-        self.template = tpl
-
-    def __call__(self, **values):
-        values.setdefault("_variable", lambda name: values[name])
-        return _template(self.template, values)
-
-
-def template(tpl, nocache=False, /, **values):
-    if isinstance(tpl, Tag):
-        return Template(tpl)(**values)
-    if tpl not in _cached_templates or nocache:
-        _cached_templates[tpl] = Template(tpl)
-    return _cached_templates[tpl](**values)
+if __name__ == "__main__":
+    tpl = Template(Path(__file__).parent / "xx-template.html")
+    node = tpl(
+        title="__title__",
+        bearlib="__bearlib__",
+        body="__body__",
+        dev="__dev__",
+    )
+    print(str(node))

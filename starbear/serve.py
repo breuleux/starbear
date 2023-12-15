@@ -26,7 +26,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from .constructors import construct
 from .page import Page
 from .repr import Representer
-from .templating import template
+from .templating import Template, template
 from .utils import Queue, format_error, keyword_decorator, logger
 
 here = Path(__file__).parent
@@ -48,6 +48,9 @@ _gc_message = (
     " kept alive, if you are confident this will not leak"
     " memory."
 )
+
+
+bearlib_template = Template(here / "bearlib-template.html")
 
 
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
@@ -157,6 +160,9 @@ class BasicBear(AbstractBear):
         self._template = template
         self._template_params = {
             "title": "Starbear",
+            "body": "",
+            "connect_line": "",
+            "bearlib": bearlib_template,
             **template_params,
         }
 
@@ -184,10 +190,6 @@ class BasicBear(AbstractBear):
             template_path,
             **agg_params,
             _asset=lambda name: self.template_asset(name, location),
-            _embed=lambda name: self.template(
-                location / name,
-                **params,
-            ),
             _std=lambda name: self.template_asset(name, here),
         )
 
@@ -278,7 +280,7 @@ class BasicBear(AbstractBear):
 class LoneBear(BasicBear):
     def __init__(self, fn, template=None, template_params={}, strongrefs=False):
         super().__init__(
-            template=template or (here / "bare-template.html"),
+            template=template or (here / "page-template.html"),
             template_params=template_params,
         )
         self.strongrefs = strongrefs
@@ -337,8 +339,8 @@ class Cub(BasicBear):
         strongrefs=False,
     ):
         super().__init__(
-            template=template or (here / "base-template.html"),
-            template_params=template_params,
+            template=template or (here / "page-template.html"),
+            template_params={"connect_line": "bear.connect()", **template_params},
         )
         self.mother = mother
         self.fn = mother.fn
