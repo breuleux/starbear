@@ -4,6 +4,7 @@ import inspect
 import json
 import os
 import traceback
+from contextvars import ContextVar
 from functools import cached_property, wraps
 from itertools import count
 from pathlib import Path
@@ -33,6 +34,8 @@ here = Path(__file__).parent
 _count = count()
 
 dev_injections = []
+
+debug_mode = ContextVar("debug_mode", default=int(os.environ.get("STARBEAR_DEBUG", 0)))
 
 
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
@@ -181,7 +184,7 @@ class BasicBear(AbstractBear):
             message=message,
             debug=debug,
             exception=exception,
-            show_debug=self.debug,
+            show_debug=debug_mode.get(),
         )
         return JSONResponse({"message": msg}, status_code=code)
 
@@ -330,16 +333,12 @@ class Cub(BasicBear):
         template=None,
         template_params={},
         strongrefs=False,
-        debug=None,
     ):
         super().__init__(
             template=template or (here / "base-template.html"),
             template_params=template_params,
         )
         self.mother = mother
-        self.debug = (
-            bool(int(os.environ.get("STARBEAR_DEBUG", 0))) if debug is None else debug
-        )
         self.fn = mother.fn
         self.process = process
         self.query_params = query_params
@@ -358,7 +357,7 @@ class Cub(BasicBear):
             query_params=query_params,
             session=session,
             app=mother.app,
-            debug=self.debug,
+            debug=debug_mode.get(),
         )
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
