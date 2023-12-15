@@ -165,23 +165,32 @@ class Page:
             "put", selector="head title", content=title, method="innerHTML"
         )
 
-    def add_resource(self, resource, type=None):
-        if isinstance(resource, Path):
-            if resource.suffix == ".css" or type == "text/css":
-                node = H.link(rel="stylesheet", href=resource)
-            elif resource.suffix == ".js" or type == "text/javascript":
-                node = H.script(src=resource)
-            elif resource.suffix == ".ico":
-                node = H.link(rel="icon", href=resource)
+    def add_resources(self, *resources, type=None):
+        def _build(resource, name):
+            if name.endswith(".css") or type == "text/css":
+                return H.link(rel="stylesheet", href=resource)
+            elif name.endswith(".js") or type == "text/javascript":
+                return H.script(src=resource)
+            elif name.endswith(".ico"):
+                return H.link(rel="icon", href=resource)
             else:
                 raise ValueError(f"Cannot determine resource type for '{resource}'")
-        elif isinstance(resource, Tag):
-            node = resource
-        else:
-            raise TypeError("resource argument should be a Path or a Tag object")
 
-        parts, _, _ = self.representer.generate(node, filter_resources=None)
-        self.queue_command("resource", content=str(parts))
+        for resource in resources:
+            if isinstance(resource, str):
+                if resource.startswith("http://") or resource.startswith("https://"):
+                    node = _build(resource, resource)
+                else:
+                    node = _build(Path(resource), resource)
+            elif isinstance(resource, Path):
+                node = _build(resource, resource.suffix)
+            elif isinstance(resource, Tag):
+                node = resource
+            else:
+                raise TypeError("resource argument should be a Path or a Tag object")
+
+            parts, _, _ = self.representer.generate(node, filter_resources=None)
+            self.queue_command("resource", content=str(parts))
 
     def print(self, *elements, method="beforeend"):
         for element in elements:
