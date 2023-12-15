@@ -37,6 +37,18 @@ dev_injections = []
 
 debug_mode = ContextVar("debug_mode", default=int(os.environ.get("STARBEAR_DEBUG", 0)))
 
+_gc_message = (
+    "It may have been garbage-collected."
+    " References in the HTML trees you create are weak,"
+    " so you have to keep strong references to ensure they"
+    " are not collected. Likely culprits are lambda"
+    " expressions or nested functions."
+    "\n\nAlternatively, you can pass strongrefs=True to"
+    " @bear or the constructor to force references to be"
+    " kept alive, if you are confident this will not leak"
+    " memory."
+)
+
 
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
     def deco(method):
@@ -201,17 +213,7 @@ class BasicBear(AbstractBear):
             return self.error_response(
                 code=404,
                 message="Application error: method not found.",
-                debug=(
-                    "It may have been garbage-collected."
-                    " References in the HTML trees you create are weak,"
-                    " so you have to keep strong references to ensure they"
-                    " are not collected. Likely culprits are lambda"
-                    " expressions or nested functions."
-                    "\n\nAlternatively, you can pass strongrefs=True to"
-                    " @bear or the constructor to force references to be"
-                    " kept alive, if you are confident this will not leak"
-                    " memory."
-                ),
+                debug=_gc_message,
             )
         try:
             args = await self.json(request)
@@ -403,6 +405,22 @@ class Cub(BasicBear):
             return construct(self.page, dct)
         else:
             return dct
+
+    async def json(self, request):
+        try:
+            return await super().json(request)
+        except KeyError as exc:
+            self.page.error(
+                message=f"Error constructing: reference {exc.args[0]} not found",
+                debug=_gc_message,
+            )
+            raise
+        except Exception as exc:
+            self.page.error(
+                message="Error constructing object",
+                exception=exc,
+            )
+            raise
 
     ##############
     # Cub routes #
