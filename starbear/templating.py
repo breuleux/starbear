@@ -59,7 +59,11 @@ def _extract_placeholders(txt, single=False):
 
 
 def _html_to_h(etree):
-    base_node = getattr(H, etree.tag.split("}")[1])
+    tag = etree.tag
+    if "}" in tag:
+        base_node = getattr(H, tag.split("}")[1])
+    else:
+        base_node = getattr(H, tag)
     children = []
     if etree.text:
         children.extend(_extract_placeholders(etree.text))
