@@ -9,7 +9,7 @@ from typing import Union
 from hrepr import embed, hrepr, standard_html
 from ovld import has_attribute
 
-from .ref import ObjectRegistry, Reference
+from .ref import ObjectRegistry, Reference, StrongRegistry
 from .utils import FeedbackQueue, VirtualFile
 
 
@@ -140,13 +140,18 @@ class QueueRegistry:
 
 
 class Representer:
-    def __init__(self, route):
+    def __init__(self, route, strongrefs=False):
         from asyncio import Future, Queue
 
         representer = self
-        object_registry = self.object_registry = ObjectRegistry(
-            strongrefs=100, rotate_strongrefs=False
-        )
+
+        if strongrefs:
+            object_registry = self.object_registry = StrongRegistry()
+        else:
+            object_registry = self.object_registry = ObjectRegistry(
+                strongrefs=100, rotate_strongrefs=False
+            )
+
         file_registry = self.file_registry = FileRegistry()
         vfile_registry = self.vfile_registry = VFileRegistry()
         future_registry = self.future_registry = FutureRegistry()

@@ -7,6 +7,19 @@ _c = count()
 
 
 class StrongRegistry:
+    def __init__(self):
+        self.map = {}
+
+    def register(self, obj):
+        currid = next(_c)
+        self.map[currid] = obj
+        return currid
+
+    def resolve(self, id):
+        return self.map[id]
+
+
+class StrongRotatingRegistry:
     def __init__(self, keep, rotate):
         self.keep = keep
         self.rotate = rotate
@@ -56,7 +69,7 @@ class ObjectRegistry:
     def __init__(self, strongrefs=False, rotate_strongrefs="limit"):
         self.wr = WeakRegistry()
         if strongrefs:
-            self.sr = StrongRegistry(keep=strongrefs, rotate=rotate_strongrefs)
+            self.sr = StrongRotatingRegistry(keep=strongrefs, rotate=rotate_strongrefs)
         else:
             self.sr = None
 

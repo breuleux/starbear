@@ -204,6 +204,10 @@ class BasicBear(AbstractBear):
                     " so you have to keep strong references to ensure they"
                     " are not collected. Likely culprits are lambda"
                     " expressions or nested functions."
+                    "\n\nAlternatively, you can pass strongrefs=True to"
+                    " @bear or the constructor to force references to be"
+                    " kept alive, if you are confident this will not leak"
+                    " memory."
                 ),
             )
         try:
@@ -267,11 +271,12 @@ class BasicBear(AbstractBear):
 
 
 class LoneBear(BasicBear):
-    def __init__(self, fn, template=None, template_params={}):
+    def __init__(self, fn, template=None, template_params={}, strongrefs=False):
         super().__init__(
             template=template or (here / "bare-template.html"),
             template_params=template_params,
         )
+        self.strongrefs = strongrefs
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
 
@@ -283,7 +288,7 @@ class LoneBear(BasicBear):
         self.ensure_router(request)
         if self.representer is None:
             self.route = self.path_for("main").rstrip("/")
-            self.representer = Representer(self.route)
+            self.representer = Representer(self.route, strongrefs=self.strongrefs)
 
     def wrap_route(self, method, routeinfo):
         @wraps(method)
@@ -324,6 +329,7 @@ class Cub(BasicBear):
         session={},
         template=None,
         template_params={},
+        strongrefs=False,
         debug=None,
     ):
         super().__init__(
@@ -339,7 +345,7 @@ class Cub(BasicBear):
         self.query_params = query_params
         self.session = session
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
-        self.representer = Representer(self.route)
+        self.representer = Representer(self.route, strongrefs=strongrefs)
         self.iq = Queue()
         self.oq = Queue()
         self.history = []
