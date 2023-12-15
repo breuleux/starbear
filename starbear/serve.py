@@ -318,7 +318,7 @@ class LoneBear(BasicBear):
             if response.name != "html":
                 response = self.template(body=response)
             html = self.representer.generate_string(response)
-            return HTMLResponse(html)
+            return HTMLResponse(f"<!DOCTYPE html>\n{html}")
         elif isinstance(response, dict):
             return JSONResponse(response)
         else:
@@ -423,8 +423,9 @@ class Cub(BasicBear):
         self.unschedule_selfdestruct()
         node = self.template()
         self.reset = True
+        html = self.representer.generate_string(node)
         return HTMLResponse(
-            self.representer.generate_string(node),
+            f"<!DOCTYPE html>\n{html}",
             headers={
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
