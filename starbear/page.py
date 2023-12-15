@@ -1,5 +1,4 @@
 import asyncio as aio
-import traceback
 from pathlib import Path
 
 from hrepr import H, Tag
@@ -12,29 +11,24 @@ from starbear.utils import format_error
 class Page:
     def __init__(
         self,
-        iq,
-        oq,
-        representer,
+        instance,
         selector=None,
-        query_params={},
-        session={},
         track_history=True,
         sent_resources=None,
         debug=False,
-        app=None,
         loop=None,
     ):
-        self.iq = iq
-        self.oq = oq
+        self.instance = instance
+        self.iq = instance.iq
+        self.oq = instance.oq
+        self.query_params = instance.query_params
+        self.session = instance.session
+        self.representer = instance.representer
         self.selector = selector
-        self.query_params = query_params
-        self.session = session
-        self.representer = representer
         self.track_history = track_history
         self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
         self.debug = debug
-        self.app = app
         self.loop = loop or aio.get_running_loop()
         self.js = JavaScriptOperation(self, [])
         self.window = JavaScriptOperation(self, [], root="window")
@@ -63,12 +57,12 @@ class Page:
 
     def page_select(self, selector):
         return type(self)(
-            iq=self.iq,
-            oq=self.oq,
+            instance=self.instance,
             selector=selector,
-            representer=self.representer,
             track_history=self.track_history,
             sent_resources=self.sent_resources,
+            debug=self.debug,
+            loop=self.loop,
         )
 
     def with_history(self, track_history=True):
@@ -76,12 +70,12 @@ class Page:
             return self
         else:
             return type(self)(
-                iq=self.iq,
-                oq=self.oq,
+                instance=self.instance,
                 selector=self.selector,
-                representer=self.representer,
                 track_history=track_history,
                 sent_resources=self.sent_resources,
+                debug=self.debug,
+                loop=self.loop,
             )
 
     def without_history(self):

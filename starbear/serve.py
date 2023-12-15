@@ -352,15 +352,7 @@ class Cub(BasicBear):
         self.history = []
         self.reset = False
         self.ws = None
-        self.page = Page(
-            self.iq,
-            self.oq,
-            representer=self.representer,
-            query_params=query_params,
-            session=session,
-            app=mother.app,
-            debug=debug_mode.get(),
-        )
+        self.page = Page(instance=self, debug=debug_mode.get())
         self.coro = aio.create_task(self.run())
         self._sd_coro = None
         self.log("info", "Created process")
