@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from starbear.page import Page
+from .page import Page
+from .ref import Reference
 
 constructors = {}
 
@@ -30,6 +31,10 @@ class BrowserEvent:
             return self.refs[0]
         else:
             return None
+
+    @property
+    def obj(self):
+        return self.ref.datum
 
 
 class FormData(dict):
@@ -81,6 +86,14 @@ def _(page, id):
 @register_constructor("Reference")
 def _(page, id):
     return page.representer.object_registry.resolve(id)
+
+
+@register_constructor("FullReference")
+def _(page, id):
+    return Reference(
+        page.representer.object_registry.resolve(id),
+        id=id,
+    )
 
 
 def construct(page, dct):

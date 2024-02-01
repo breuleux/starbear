@@ -743,7 +743,7 @@ export class Starbear {
                         let lnk = element.getAttribute("--ref");
                         if (lnk.startsWith("obj#")) {
                             let [_, id] = lnk.split("#");
-                            lnk = {"%": "Reference", "id": Number(id)};
+                            lnk = {"%": "FullReference", "id": Number(id)};
                         }
                         refs.push(lnk);
                     }

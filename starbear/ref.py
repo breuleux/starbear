@@ -6,12 +6,16 @@ from types import MethodType
 _c = count()
 
 
+def _id(id=None):
+    return next(_c) if id is None else id
+
+
 class StrongRegistry:
     def __init__(self):
         self.map = {}
 
-    def register(self, obj):
-        currid = next(_c)
+    def register(self, obj, id=None):
+        currid = _id(id)
         self.map[currid] = obj
         return currid
 
@@ -26,8 +30,8 @@ class StrongRotatingRegistry:
         self.map = {}
         self.ids = deque()
 
-    def register(self, obj):
-        currid = next(_c)
+    def register(self, obj, id=None):
+        currid = _id(id)
         self.map[currid] = obj
         self.ids.append(currid)
         if len(self.ids) > self.keep >= 0:
@@ -48,8 +52,8 @@ class WeakRegistry:
     def __init__(self):
         self.map = {}
 
-    def register(self, obj):
-        currid = next(_c)
+    def register(self, obj, id=None):
+        currid = _id(id)
         if isinstance(obj, MethodType):
             ref = weakref.WeakMethod(obj)
         else:
@@ -73,11 +77,11 @@ class ObjectRegistry:
         else:
             self.sr = None
 
-    def register(self, obj):
+    def register(self, obj, id=None):
         try:
-            return self.wr.register(obj)
+            return self.wr.register(obj, id)
         except TypeError:
-            return self.sr.register(obj)
+            return self.sr.register(obj, id)
 
     def resolve(self, id):
         try:
@@ -87,5 +91,6 @@ class ObjectRegistry:
 
 
 class Reference:
-    def __init__(self, datum):
+    def __init__(self, datum, id=None):
+        self.id = _id(id)
         self.datum = datum

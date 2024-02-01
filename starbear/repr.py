@@ -203,7 +203,7 @@ class Representer:
 
         @attr_embed.register
         def attr_embed(self, attr: str, ref: Reference):
-            obj_id = object_registry.register(ref.datum)
+            obj_id = object_registry.register(ref.datum, id=ref.id)
             return f"obj#{obj_id}"
 
         @attr_embed.register

@@ -5,7 +5,8 @@ from hrepr import H, Tag
 from hrepr.hgen import ResourceDeduplicator
 from hrepr.resource import Resource
 
-from starbear.utils import format_error
+from .ref import Reference
+from .utils import format_error
 
 
 class Page:
@@ -43,6 +44,8 @@ class Page:
                 return f"#{tid}"
             elif isinstance(x, str):
                 return x
+            elif isinstance(x, Reference):
+                return f'[--ref="obj#{x.id}"]'
             else:
                 raise TypeError("Only str or Tag can be used as a selector")
 
