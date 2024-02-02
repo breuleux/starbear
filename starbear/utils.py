@@ -115,38 +115,36 @@ class VirtualFile:
 
 @dataclass
 class ClientWrap:
-    DEFAULTS = {
-        "debounce": 0,
-        "extract": None,
-        "form": False,
-        "refs": False,
-        "pack": False,
-        "partial": None,
-        "toggles": None,
-        "pre": None,
-        "post": None,
-        "tag": None,
+    FIELDS = {
+        "debounce",
+        "extract",
+        "form",
+        "refs",
+        "pack",
+        "partial",
+        "toggles",
+        "pre",
+        "post",
+        "tag",
     }
 
     def __init__(self, func, **options):
-        if any((key := k) not in self.DEFAULTS for k in options):
+        if any((key := k) not in self.FIELDS for k in options):
             raise TypeError(f"Invalid argument to ClientWrap: '{key}'")
 
         if isinstance(func, ClientWrap):
-            inherit = func.options
+            options = {**func.options, **options}
             func = func.func
-        else:
-            inherit = self.DEFAULTS
 
-        options = {**inherit, **options}
+        if "partial" in options:
+            partial = options["partial"]
+            if partial is None or isinstance(partial, (list, tuple)):
+                options["partial"] = partial
+            else:
+                options["partial"] = [partial]
 
-        partial = options["partial"]
-        if partial is None or isinstance(partial, (list, tuple)):
-            options["partial"] = partial
-        else:
-            options["partial"] = [partial]
-
-        options["id"] = id(func)
+        if "debounce" in options:
+            options["id"] = id(func)
 
         for x in ["pre", "post"]:
             result = options.get(x, None)
@@ -159,7 +157,7 @@ class ClientWrap:
                     else p
                     for p in result
                 ]
-            options[x] = result
+                options[x] = result
 
         self.func = func
         self.options = options
