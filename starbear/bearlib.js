@@ -50,6 +50,7 @@ Event.prototype.toJSON = function () {
             form: this.target.elements && (new FormData(this)),
             value: this.target.value,
             refs: this.$refs,
+            tag: this.tag,
         }
     }
 }
@@ -88,6 +89,7 @@ class FormData {
             "target": this.target,
             "submit": this.submit,
             "refs": this.refs,
+            "tag": this.tag,
         }
     }
 }
@@ -757,13 +759,20 @@ export class Starbear {
 
         function part(f, pre_args) {
             return function (...post_args) {
-                return f.call(this, ...pre_args, ...post_args)
+                return f.call(this, ...pre_args, ...post_args);
+            }
+        }
+
+        function add_tag(f, tag) {
+            return function (arg, ...rest) {
+                arg.tag = tag;
+                return f.call(this, arg, ...rest);
             }
         }
 
         function pack(f) {
             return function (...args) {
-                return f.call(this, args)
+                return f.call(this, args);
             }
         }
 
@@ -801,6 +810,9 @@ export class Starbear {
         }
         if (options.partial) {
             func = part(func, options.partial);
+        }
+        if (options.tag) {
+            func = add_tag(func, options.tag);
         }
         if (options.extract) {
             let extractors = options.extract;

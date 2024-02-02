@@ -21,6 +21,7 @@ class BrowserEvent:
     form: Page = None
     value: object = None
     refs: list = None
+    tag: str = None
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -38,11 +39,12 @@ class BrowserEvent:
 
 
 class FormData(dict):
-    def __init__(self, data, target, submit, refs):
+    def __init__(self, data, target, submit, refs, tag):
         super().__init__(data)
         self.target = target
         self.submit = submit
         self.refs = refs
+        self.tag = tag
 
     @property
     def ref(self):
@@ -50,6 +52,10 @@ class FormData(dict):
             return self.refs[0]
         else:
             return None
+
+    @property
+    def obj(self):
+        return self.ref.datum
 
 
 def register_constructor(key):
@@ -71,8 +77,8 @@ def _(page, data):
 
 
 @register_constructor("FormData")
-def _(page, data, target=None, submit=None, refs=None):
-    return FormData(data, target, submit, refs)
+def _(page, data, target=None, submit=None, refs=None, tag=None):
+    return FormData(data, target, submit, refs, tag)
 
 
 @register_constructor("Promise")

@@ -72,7 +72,7 @@ class Queue(asyncio.Queue):
         self._wakeup_next(self._getters)
 
     def tag(self, arg):
-        return ClientWrap(self, pack=True).tag(arg)
+        return ClientWrap(self).tag(arg)
 
     def wrap(self, **options):
         return ClientWrap(self, **options)
@@ -125,6 +125,7 @@ class ClientWrap:
         "toggles": None,
         "pre": None,
         "post": None,
+        "tag": None,
     }
 
     def __init__(self, func, **options):
@@ -164,7 +165,7 @@ class ClientWrap:
         self.options = options
 
     def tag(self, arg):
-        return self.wrap(partial=[Reference(arg)])
+        return self.wrap(tag=arg if isinstance(arg, str) else Reference(arg))
 
     def wrap(self, **options):
         return type(self)(self, **options)
