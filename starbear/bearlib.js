@@ -237,13 +237,13 @@ function activateScripts(node) {
 
 
 function hookOnloads(node, sock) {
-    for (let child of node.querySelectorAll("link,script")) {
+    for (let child of node.querySelectorAll("link,script[src]")) {
         let token = ++$_autoid;
         let wake = () => sock.wake(token);
         sock.requireWait(token);
         child.onload = wake;
         child.onerror = wake;
-        setTimeout(wake, 250);  // Safety valve
+        setTimeout(wake, 100);  // Safety valve
     }
 }
 
