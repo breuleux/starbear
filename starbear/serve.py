@@ -23,7 +23,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from .constructors import construct
+from .constructors import NamespaceDict, construct
 from .page import Page
 from .repr import Representer
 from .templating import Template, template
@@ -109,7 +109,7 @@ class AbstractBear:
         self.route = None
         self.router = None
         self.representer = None
-        self._json_decoder = json.JSONDecoder(object_hook=self.object_hook)
+        self._json_decoder = json.JSONDecoder(object_pairs_hook=self.object_pairs_hook)
 
     ###########
     # Methods #
@@ -121,8 +121,8 @@ class AbstractBear:
     def path_for(self, name, **kwargs):
         return self.router.url_path_for(self.mangle(name), **kwargs)
 
-    def object_hook(self, dct):
-        return dct
+    def object_pairs_hook(self, pairs):
+        return NamespaceDict(pairs)
 
     async def json(self, request):
         body = await request.body()
@@ -394,7 +394,8 @@ class Cub(BasicBear):
         finally:
             self.log("info", "Finished process")
 
-    def object_hook(self, dct):
+    def object_pairs_hook(self, pairs):
+        dct = NamespaceDict(pairs)
         if "%" in dct:
             return construct(self.page, dct)
         else:

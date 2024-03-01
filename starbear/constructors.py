@@ -58,6 +58,11 @@ class FormData(dict):
         return self.ref.datum
 
 
+class NamespaceDict(dict):
+    def __getattr__(self, item):
+        return self[item]
+
+
 def register_constructor(key):
     def deco(fn):
         constructors[key] = fn

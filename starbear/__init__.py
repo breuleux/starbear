@@ -1,5 +1,6 @@
 from hrepr import H
 
+from .constructors import BrowserEvent, FormData
 from .ref import Reference
 from .serve import (
     ConfigurableBear,
