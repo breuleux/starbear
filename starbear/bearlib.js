@@ -69,15 +69,31 @@ class FormData {
         if (element) {
             const form = element.elements;
             for (let [k, v] of Object.entries(form)) {
+                let key = null;
                 if (isNaN(k)) {
-                    // Non-numeric key
-                    this.data[k] = v.type === "checkbox" ? v.checked : v.value;
+                    key = k;
                 }
                 else if (v.name) {
-                    let name = v.name;
-                    v = form[v.name];
-                    this.data[name] = v.type === "checkbox" ? v.checked : v.value;
+                    key = v.name;
+                    v = form[key];
                 }
+                let current = this.data;
+                let subkeys = key.split(".");
+                let zipped = subkeys.map((k, i) => [k, subkeys[i + 1]]);
+                let [lastkey, _] = zipped.pop();
+                for (let [subkey, nxt] of zipped) {
+                    if (isNaN(nxt)) {
+                        current = current[subkey] = current[subkey] || {};
+                    }
+                    else {
+                        current = current[subkey] = current[subkey] || [];
+                    }
+                }
+                current[lastkey] = (
+                    v.type === "checkbox"
+                    ? v.checked
+                    : (v.richValue === undefined ? v.value : v.richValue)
+                );
             }
         }
     }
