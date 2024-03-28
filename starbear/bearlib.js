@@ -77,6 +77,9 @@ class FormData {
                     key = v.name;
                     v = form[key];
                 }
+                else {
+                    continue;
+                }
                 let current = this.data;
                 let subkeys = key.split(".");
                 let zipped = subkeys.map((k, i) => [k, subkeys[i + 1]]);
