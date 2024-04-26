@@ -11,6 +11,7 @@ from pathlib import Path
 from uuid import uuid4 as uuid
 
 from hrepr import H, Tag
+from more_itertools import take
 from starlette.exceptions import HTTPException
 from starlette.responses import (
     FileResponse,
@@ -356,7 +357,6 @@ class Cub(BasicBear):
         self.ws = None
         self.page = Page(instance=self, debug=debug_mode.get())
         self.coro = aio.create_task(self.run())
-        self._sd_coro = None
         self.log("info", "Created process")
 
     def log(self, level, msg, **extra):
@@ -366,33 +366,25 @@ class Cub(BasicBear):
             logger.error("Could not get user")
         getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
 
-    def schedule_selfdestruct(self):
-        async def sd():
-            await aio.sleep(self.mother.process_timeout)
-            del self.mother.cubs[self.process]
-            self.coro.cancel()
-            self.log("info", "Destroyed process")
-
-        if self.mother.process_timeout is not None:
-            self._sd_coro = aio.create_task(sd())
-
-    def unschedule_selfdestruct(self):
-        if self._sd_coro:
-            self._sd_coro.cancel()
-            self._sd_coro = None
+    def destroy(self):
+        self.coro.cancel()
 
     async def run(self):
+        reason = "done"
         try:
             await self.fn(self.page)
             await self.page.sync()
+        except aio.CancelledError as exc:
+            reason = "cancelled"
         except Exception as exc:
+            reason = "error"
             self.log("error", str(exc), traceback=traceback)
             self.page.error(
                 message=H.b("An error occurred. You may need to refresh the page."),
                 exception=exc,
             )
         finally:
-            self.log("info", "Finished process")
+            self.log("info", f"Finished process ({reason})")
 
     def object_pairs_hook(self, pairs):
         dct = NamespaceDict(pairs)
@@ -423,7 +415,7 @@ class Cub(BasicBear):
 
     @routeinfo(root=True)
     async def route_main(self, request):
-        self.unschedule_selfdestruct()
+        self.mother.declare_active(self)
         node = self.template()
         self.reset = True
         html = self.representer.generate_string(node)
@@ -438,7 +430,7 @@ class Cub(BasicBear):
 
     @routeinfo(cls=WebSocketRoute)
     async def route_socket(self, ws):
-        self.unschedule_selfdestruct()
+        self.mother.declare_active(self)
 
         async def recv():
             while True:
@@ -478,7 +470,7 @@ class Cub(BasicBear):
             [aio.create_task(recv()), aio.create_task(send())],
             return_when=aio.FIRST_COMPLETED,
         )
-        self.schedule_selfdestruct()
+        self.mother.declare_dormant(self)
 
 
 def get_process_from_request(request):
@@ -489,29 +481,68 @@ def get_process_from_request(request):
 
 
 class MotherBear(AbstractBear):
-    def __init__(self, fn, process_timeout=60, hide_processes=True, **cub_params):
+    def __init__(
+        self,
+        fn,
+        soft_process_cap=1_000,
+        hard_process_cap=1_000_000,
+        hide_processes=True,
+        **cub_params,
+    ):
         super().__init__()
         self.fn = fn
         self.__doc__ = getattr(fn, "__doc__", None)
         self.router = None
-        self.process_timeout = process_timeout
+        self.hard_process_cap = hard_process_cap
+        self.soft_process_cap = soft_process_cap
         self.hide_processes = hide_processes
         self.cub_params = cub_params
         self.cubs = {}
+        self.dormant_cubs = {}
+
+    #############
+    # Utilities #
+    #############
+
+    def _create_new_cub(self, proc, query_params, session):
+        reclaims = max(
+            0, min(len(self.dormant_cubs), len(self.cubs) - self.soft_process_cap)
+        )
+        processes = take(n=reclaims, iterable=self.dormant_cubs)
+
+        for p in processes:
+            cub = self.dormant_cubs.pop(p)
+            cub.destroy()
+            del self.cubs[p]
+
+        if len(self.cubs) > self.hard_process_cap:
+            raise Exception("Cannot serve request: too many processes exist.")
+
+        self.cubs[proc] = Cub(
+            self,
+            proc,
+            query_params=query_params,
+            session=session,
+            **self.cub_params,
+        )
 
     def _get(self, proc, query_params={}, session={}, ensure=False):
         if proc not in self.cubs:
             if ensure:
-                self.cubs[proc] = Cub(
-                    self,
+                self._create_new_cub(
                     proc,
                     query_params=query_params,
                     session=session,
-                    **self.cub_params,
                 )
             else:
                 return None
         return self.cubs[proc]
+
+    def declare_active(self, cub):
+        self.dormant_cubs.pop(cub.process, None)
+
+    def declare_dormant(self, cub):
+        self.dormant_cubs[cub.process] = cub
 
     #################
     # Mother routes #
