@@ -181,7 +181,7 @@ export default class Tabular {
         let area = this.areaData[tab];
         if (!append) {
             area.element.innerHTML = "";
-            if (!node) {
+            if (!node || node === "") {
                 area.button.classList.add("bear--empty");
                 return;
             }
