@@ -168,9 +168,7 @@ class Page:
         )
 
     def put_nowait(self, element, method, history=None, send_resources=True):
-        self._push(
-            self.put(element, method, history=history, send_resources=send_resources)
-        )
+        self._push(self.put(element, method, history=history, send_resources=send_resources))
 
     def queue_command(self, command, /, history=None, **arguments):
         if history is None:
@@ -179,9 +177,7 @@ class Page:
         self._push(self.oq.put((arguments, history)))
 
     def set_title(self, title):
-        self.queue_command(
-            "put", selector="head title", content=title, method="innerHTML"
-        )
+        self.queue_command("put", selector="head title", content=title, method="innerHTML")
 
     def add_resources(self, *resources, type=None):
         def _build(resource, name):
@@ -218,9 +214,7 @@ class Page:
     def error(self, message, debug=None, exception=None):
         if not isinstance(message, str):
             message = str(self.representer.hrepr(message))
-        self.queue_command(
-            "error", content=format_error(message, debug, exception, self.debug)
-        )
+        self.queue_command("error", content=format_error(message, debug, exception, self.debug))
 
     def log(self, message):
         if not isinstance(message, str):
@@ -279,9 +273,7 @@ class Page:
 
     def __js_embed__(self, representer):
         if self.selector is None:
-            raise Exception(
-                "Cannot send page reference to JS because it has no selector."
-            )
+            raise Exception("Cannot send page reference to JS because it has no selector.")
         return f"document.querySelector('{self.selector}')"
 
     async def recv(self):

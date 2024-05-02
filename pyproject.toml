@@ -14,9 +14,7 @@ hrepr = "^0.6.1"
 lxml = "^4.9.3"
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.8.0"
-isort = "^5.10.1"
-flake8-pyproject = "^1.2.2"
+ruff = "^0.4.2"
 sphinx = "^5.3.0"
 sphinx-rtd-theme = "^1.1.1"
 
@@ -24,15 +22,14 @@ sphinx-rtd-theme = "^1.1.1"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.isort]
-known_first_party = "starbear"
-known_third_party = ""
-multi_line_output = 3
-include_trailing_comma = true
-combine_as_imports = true
+[tool.ruff]
+line-length = 99
 
-[tool.flake8]
-ignore = "E501,E203,W503,F722"
-per-file-ignores = [
-  "__init__.py:F401"
-]
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true

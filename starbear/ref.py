@@ -39,9 +39,7 @@ class StrongRotatingRegistry:
                 rm = self.ids.popleft()
                 del self.map[rm]
             else:
-                raise Exception(
-                    "Exceeded limit for keeping strong references to objects."
-                )
+                raise Exception("Exceeded limit for keeping strong references to objects.")
         return currid
 
     def resolve(self, id):

@@ -152,9 +152,7 @@ class ClientWrap:
                 if not isinstance(result, (list, tuple)):
                     result = [result]
                 result = [
-                    JSExpression(f"function (result) {{ {p} }}")
-                    if isinstance(p, str)
-                    else p
+                    JSExpression(f"function (result) {{ {p} }}") if isinstance(p, str) else p
                     for p in result
                 ]
                 options[x] = result

@@ -81,7 +81,7 @@ def gather_routes(obj):
 
 def autoroutes(defns, prefix, mangle, wrap=None):
     routes = []
-    for (method, routeinfo) in defns:
+    for method, routeinfo in defns:
         wmeth = wrap(method, routeinfo) if wrap else method
         mname = mangle(routeinfo["name"])
         route = routeinfo["cls"](
@@ -172,11 +172,7 @@ class BasicBear(AbstractBear):
     ###################
 
     def template_asset(self, name, where):
-        return (
-            self.route
-            + "/file/"
-            + self.representer.file_registry.register(where / name)
-        )
+        return self.route + "/file/" + self.representer.file_registry.register(where / name)
 
     def template(self, template_path=None, **params):
         template_path = template_path or self._template
@@ -263,13 +259,9 @@ class BasicBear(AbstractBear):
 
     @routeinfo("/{path:path}")
     async def route_file(self, request):
-        pth = self.representer.file_registry.get_file_from_url(
-            request.path_params["path"]
-        )
+        pth = self.representer.file_registry.get_file_from_url(request.path_params["path"])
         if pth is None:
-            raise HTTPException(
-                status_code=404, detail="File not found or not available."
-            )
+            raise HTTPException(status_code=404, detail="File not found or not available.")
         return FileResponse(pth, headers={"Cache-Control": "no-cache"})
 
     @routeinfo("/{path:path}")
@@ -362,7 +354,7 @@ class Cub(BasicBear):
     def log(self, level, msg, **extra):
         try:
             user = self.session.get("user", {}).get("email", None)
-        except:
+        except:  # noqa: E722
             logger.error("Could not get user")
         getattr(logger, level)(msg, extra={"proc": self.process, "user": user, **extra})
 
@@ -374,7 +366,7 @@ class Cub(BasicBear):
         try:
             await self.fn(self.page)
             await self.page.sync()
-        except aio.CancelledError as exc:
+        except aio.CancelledError:
             reason = "cancelled"
         except Exception as exc:
             reason = "error"
@@ -505,9 +497,7 @@ class MotherBear(AbstractBear):
     #############
 
     def _create_new_cub(self, proc, query_params, session):
-        reclaims = max(
-            0, min(len(self.dormant_cubs), len(self.cubs) - self.soft_process_cap)
-        )
+        reclaims = max(0, min(len(self.dormant_cubs), len(self.cubs) - self.soft_process_cap))
         processes = take(n=reclaims, iterable=self.dormant_cubs)
 
         for p in processes:
