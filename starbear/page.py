@@ -9,6 +9,34 @@ from .ref import Reference
 from .utils import format_error
 
 
+def selector_for(x):
+    if isinstance(x, Tag):
+        tid = x.attributes.get("id", None)
+        if not tid:
+            raise Exception("Cannot locate element because it has no id.")
+        return f"#{tid}"
+    elif isinstance(x, str):
+        return x
+    elif isinstance(x, Reference):
+        return f'[--ref="obj#{x.id}"]'
+    elif (selector := getattr(x, "selector", None)) and isinstance(selector, str):
+        return selector
+    else:
+        raise TypeError(
+            "A valid selector must be a str, Tag, Reference or an object"
+            " with a string attribute named `selector`."
+        )
+
+
+class Component:
+    @property
+    def selector(self):
+        return selector_for(self.node)
+
+    def __hrepr__(self, H, hrepr):
+        return self.node
+
+
 class Page:
     def __init__(
         self,
@@ -36,22 +64,9 @@ class Page:
         self.bearlib = JavaScriptOperation(self, [], root="$$BEAR")
 
     def __getitem__(self, selector):
-        def _map_selector(x):
-            if isinstance(x, Tag):
-                tid = x.attributes.get("id", None)
-                if not tid:
-                    raise Exception("Cannot locate element because it has no id.")
-                return f"#{tid}"
-            elif isinstance(x, str):
-                return x
-            elif isinstance(x, Reference):
-                return f'[--ref="obj#{x.id}"]'
-            else:
-                raise TypeError("Only str or Tag can be used as a selector")
-
         if not isinstance(selector, tuple):
             selector = (selector,)
-        selector = " ".join(map(_map_selector, selector))
+        selector = " ".join(map(selector_for, selector))
 
         if self.selector is not None:
             selector = f"{self.selector} {selector}"
