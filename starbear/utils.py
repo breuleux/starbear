@@ -83,6 +83,9 @@ class Queue(asyncio.Queue):
     async def __anext__(self):
         return await self.get()
 
+    def __call__(self, value):
+        return self.put(value)
+
 
 def format_error(message, debug=None, exception=None, show_debug=False):
     if show_debug:
@@ -113,7 +116,6 @@ class VirtualFile:
             self.name += f"/{name}"
 
 
-@dataclass
 class ClientWrap:
     FIELDS = {
         "debounce",
