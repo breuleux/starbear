@@ -497,7 +497,7 @@ class MotherBear(AbstractBear):
 
     def _create_new_cub(self, proc, query_params, session):
         reclaims = max(0, min(len(self.dormant_cubs), len(self.cubs) - self.soft_process_cap))
-        processes = list(islice(n=reclaims, iterable=self.dormant_cubs))
+        processes = list(islice(self.dormant_cubs, reclaims))
 
         for p in processes:
             cub = self.dormant_cubs.pop(p)
