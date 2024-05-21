@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "starbear"
-version = "0.1.5"
+version = "0.1.6"
 description = "Framework for easy small local web apps or programs"
 authors = ["Olivier Breuleux <breuleux@gmail.com>"]
 license = "MIT"
