@@ -3,7 +3,6 @@ import functools
 import logging
 import sys
 import traceback
-from dataclasses import dataclass
 from hashlib import md5
 from mimetypes import guess_type
 
