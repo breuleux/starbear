@@ -9,7 +9,7 @@ from typing import Union
 from hrepr import embed, hrepr, standard_html
 from ovld import has_attribute
 
-from .ref import ObjectRegistry, Reference, StrongRegistry
+from .ref import ObjectRegistry, Reference, StrongRegistry, WeakRegistry
 from .utils import FeedbackQueue, VirtualFile
 
 
@@ -145,11 +145,17 @@ class Representer:
 
         representer = self
 
-        if strongrefs:
+        if strongrefs is True:
             object_registry = self.object_registry = StrongRegistry()
+        elif not strongrefs:
+            object_registry = self.object_registry = WeakRegistry()
+        elif strongrefs < 0:
+            object_registry = self.object_registry = ObjectRegistry(
+                strongrefs=-strongrefs, rotate_strongrefs=True
+            )
         else:
             object_registry = self.object_registry = ObjectRegistry(
-                strongrefs=100, rotate_strongrefs=False
+                strongrefs=strongrefs, rotate_strongrefs=False
             )
 
         file_registry = self.file_registry = FileRegistry()

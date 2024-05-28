@@ -270,7 +270,7 @@ class BasicBear(AbstractBear):
 
 
 class LoneBear(BasicBear):
-    def __init__(self, fn, template=None, template_params={}, strongrefs=False):
+    def __init__(self, fn, template=None, template_params={}, strongrefs=100):
         super().__init__(
             template=template or (here / "page-template.html"),
             template_params=template_params,
@@ -328,7 +328,7 @@ class Cub(BasicBear):
         session={},
         template=None,
         template_params={},
-        strongrefs=False,
+        strongrefs=100,
     ):
         super().__init__(
             template=template or (here / "page-template.html"),

@@ -68,12 +68,9 @@ class WeakRegistry:
 
 
 class ObjectRegistry:
-    def __init__(self, strongrefs=False, rotate_strongrefs="limit"):
+    def __init__(self, strongrefs=100, rotate_strongrefs=True):
         self.wr = WeakRegistry()
-        if strongrefs:
-            self.sr = StrongRotatingRegistry(keep=strongrefs, rotate=rotate_strongrefs)
-        else:
-            self.sr = None
+        self.sr = StrongRotatingRegistry(keep=strongrefs, rotate=rotate_strongrefs)
 
     def register(self, obj, id=None):
         try:
