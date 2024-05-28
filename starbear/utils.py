@@ -115,6 +115,13 @@ class VirtualFile:
             self.name += f"/{name}"
 
 
+def rewrap(old_func, new_func):
+    if isinstance(old_func, ClientWrap):
+        return type(old_func)(new_func, **old_func.options)
+    else:
+        return new_func
+
+
 class ClientWrap:
     FIELDS = {
         "debounce",
@@ -166,6 +173,9 @@ class ClientWrap:
 
     def wrap(self, **options):
         return type(self)(self, **options)
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
 
     def __aiter__(self):
         return self.func

@@ -11,4 +11,4 @@ from .serve import (
     simplebear,
 )
 from .templating import template
-from .utils import ClientWrap, FeedbackQueue, Queue, VirtualFile
+from .utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap
