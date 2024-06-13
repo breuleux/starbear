@@ -36,6 +36,9 @@ class Component:
     def __hrepr__(self, H, hrepr):
         return self.node
 
+    def __h__(self):
+        return self.node
+
 
 class Page:
     def __init__(
