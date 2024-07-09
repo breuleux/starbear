@@ -1,11 +1,11 @@
 import asyncio as aio
 from pathlib import Path
 
-from hrepr import H, Tag
-from hrepr.hgen import ResourceDeduplicator
+from hrepr import H, J, Tag
 from hrepr.resource import Resource
 
 from .reg import Reference
+from .repr import StarbearHTMLGenerator
 from .utils import format_error
 
 
@@ -15,6 +15,8 @@ def selector_for(x):
         if not tid:
             raise Exception("Cannot locate element because it has no id.")
         return f"#{tid}"
+    elif isinstance(x, J):
+        return f"#{x._get_id()}"
     elif isinstance(x, str):
         return x
     elif isinstance(x, Reference):
@@ -46,7 +48,7 @@ class Page:
         instance,
         selector=None,
         track_history=True,
-        sent_resources=None,
+        hgen=None,
         debug=False,
         loop=None,
     ):
@@ -56,9 +58,9 @@ class Page:
         self.query_params = instance.query_params
         self.session = instance.session
         self.representer = instance.representer
+        self.hgen = hgen or StarbearHTMLGenerator(instance.representer)
         self.selector = selector
         self.track_history = track_history
-        self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
         self.debug = debug
         self.loop = loop or aio.get_running_loop()
@@ -81,7 +83,7 @@ class Page:
             instance=self.instance,
             selector=selector,
             track_history=self.track_history,
-            sent_resources=self.sent_resources,
+            hgen=self.hgen,
             debug=self.debug,
             loop=self.loop,
         )
@@ -94,7 +96,7 @@ class Page:
                 instance=self.instance,
                 selector=self.selector,
                 track_history=track_history,
-                sent_resources=self.sent_resources,
+                hgen=self.hgen,
                 debug=self.debug,
                 loop=self.loop,
             )
@@ -125,7 +127,7 @@ class Page:
         if isinstance(x, str):
             return H.span(x)
         else:
-            return self.representer.hrepr(x)
+            return self.hgen.hrepr(x)
 
     def _generate_put_commands(self, element, method, send_resources=False):
         sel = self.selector or "body"
@@ -138,26 +140,25 @@ class Page:
             }
             return
 
-        parts, extra, resources = self.representer.generate(
-            element, filter_resources=self.sent_resources if send_resources else None
-        )
-        if not resources.empty():
+        blk = self.hgen.blockgen(element)
+
+        if blk.processed_resources:
             yield {
                 "command": "resource",
-                "content": str(resources),
+                "content": str(H.inline(blk.processed_resources)),
             }
         yield {
             "command": "put",
             "selector": sel,
             "method": method,
-            "content": str(parts),
+            "content": str(blk.result),
         }
-        if not extra.empty():
+        if not blk.extra:
             yield {
                 "command": "put",
                 "selector": sel,
                 "method": "beforeend",
-                "content": str(H.div(extra, style="display:none")),
+                "content": str(H.div(blk.processed_extra, style="display:none")),
             }
 
     async def put(self, element, method, history=None, send_resources=True):
@@ -206,8 +207,8 @@ class Page:
             else:
                 raise TypeError("resource argument should be a Path or a Tag object")
 
-            parts, _, _ = self.representer.generate(node, filter_resources=None)
-            self.queue_command("resource", content=str(parts))
+            text = self.hgen.to_string(node)
+            self.queue_command("resource", content=text)
 
     def print(self, *elements, method="beforeend"):
         for element in elements:
@@ -258,10 +259,8 @@ class Page:
             extractor=f"function () {{ {js} }}",
             future=Resource(future),
         )
-        code = self.representer.printer.expand_resources(
-            orig_code,
-            self.representer.js_embed,
-        )
+        blk = self.hgen.block()
+        code = blk.expand_resources(orig_code, blk.js_embed)
         self.queue_command("eval", selector=self.selector, code=code, history=False)
 
     def toggle(self, toggle, value=None):

@@ -1,9 +1,10 @@
+from asyncio import Future, Queue
 from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
 
-from hrepr import embed, hrepr, standard_html
-from ovld import has_attribute
+from hrepr import BlockGenerator, HTMLGenerator, hrepr
+from ovld import extend_super
 
 from .reg import (
     FileRegistry,
@@ -18,119 +19,92 @@ from .reg import (
 from .utils import FeedbackQueue, VirtualFile
 
 
-class Representer:
+class RepresenterState:
     def __init__(self, route, strongrefs=False):
-        from asyncio import Future, Queue
-
-        representer = self
-
-        if strongrefs is True:
-            object_registry = self.object_registry = StrongRegistry()
-        elif not strongrefs:
-            object_registry = self.object_registry = WeakRegistry()
-        elif strongrefs < 0:
-            object_registry = self.object_registry = ObjectRegistry(
-                strongrefs=-strongrefs, rotate_strongrefs=True
-            )
-        else:
-            object_registry = self.object_registry = ObjectRegistry(
-                strongrefs=strongrefs, rotate_strongrefs=False
-            )
-
-        file_registry = self.file_registry = FileRegistry()
-        vfile_registry = self.vfile_registry = VFileRegistry()
-        future_registry = self.future_registry = FutureRegistry()
-        queue_registry = self.queue_registry = QueueRegistry()
         self.route = route
+        if strongrefs is True:
+            self.object_registry = StrongRegistry()
+        elif not strongrefs:
+            self.object_registry = WeakRegistry()
+        elif strongrefs < 0:
+            self.object_registry = ObjectRegistry(strongrefs=-strongrefs, rotate_strongrefs=True)
+        else:
+            self.object_registry = ObjectRegistry(strongrefs=strongrefs, rotate_strongrefs=False)
+        self.file_registry = FileRegistry()
+        self.vfile_registry = VFileRegistry()
+        self.future_registry = FutureRegistry()
+        self.queue_registry = QueueRegistry()
+
+
+class StarbearHTMLGenerator(HTMLGenerator):
+    def __init__(self, representer_state):
+        self.state = representer_state
         self.hrepr = hrepr
+        super().__init__(block_generator_class=StarbearBlockGenerator)
 
-        @embed.js_embed.variant
-        def js_embed(self, fn: Union[MethodType, FunctionType]):
-            method_id = object_registry.register(fn)
-            return f"$$BEAR.func({method_id})"
 
-        @js_embed.register
-        def js_embed(self, ref: Reference):
-            obj_id = object_registry.register(ref.datum)
-            return f"$$BEAR.ref({obj_id})"
+class StarbearBlockGenerator(BlockGenerator):
+    @property
+    def route(self):
+        return self.global_generator.state.route
 
-        @js_embed.register
-        def js_embed(self, pth: Path):
-            new_pth = file_registry.register(pth)
-            return f"'{route}/file/{new_pth}'"
+    def register_object(self, x, **kwargs):
+        return self.global_generator.state.object_registry.register(x, **kwargs)
 
-        @js_embed.register
-        def js_embed(self, future: Future):
-            fid = future_registry.register(future)
-            return f"$$BEAR.promise({fid})"
+    def register_file(self, x, **kwargs):
+        return self.global_generator.state.file_registry.register(x, **kwargs)
 
-        @js_embed.register
-        def js_embed(self, queue: Queue):
-            qid = queue_registry.register(queue)
-            return f"$$BEAR.queue({qid})"
+    def register_vfile(self, x, **kwargs):
+        return self.global_generator.state.vfile_registry.register(x, **kwargs)
 
-        @js_embed.register
-        def js_embed(self, queue: FeedbackQueue):
-            qid = queue_registry.register(queue)
-            return f"$$BEAR.queue({qid}, true)"
+    def register_future(self, x, **kwargs):
+        return self.global_generator.state.future_registry.register(x, **kwargs)
 
-        @js_embed.register
-        def js_embed(self, obj: has_attribute("__js_embed__")):
-            return obj.__js_embed__(representer)
+    def register_queue(self, x, **kwargs):
+        return self.global_generator.state.queue_registry.register(x, **kwargs)
 
-        @embed.attr_embed.variant
-        def attr_embed(self, attr: str, fn: Union[MethodType, FunctionType]):
-            method_id = object_registry.register(fn)
-            if attr.startswith("hx_"):
-                return f"{route}/method/{method_id}"
-            else:
-                return f"$$BEAR.event.call(this, $$BEAR.func({method_id}))"
+    @extend_super
+    def js_embed(self, fn: Union[MethodType, FunctionType]):  # noqa: F811
+        method_id = self.register_object(fn)
+        return f"$$BEAR.func({method_id})"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, ref: Reference):
-            obj_id = object_registry.register(ref.datum, id=ref.id)
-            return f"obj#{obj_id}"
+    def js_embed(self, ref: Reference):  # noqa: F811
+        obj_id = self.register_object(ref.datum)
+        return f"$$BEAR.ref({obj_id})"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, queue: Queue):
-            qid = queue_registry.register(queue)
-            return f"$$BEAR.event.call(this, $$BEAR.queue({qid}))"
+    def js_embed(self, pth: Path):  # noqa: F811
+        new_pth = self.register_file(pth)
+        return f"'{self.route}/file/{new_pth}'"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, pth: Path):
-            new_pth = file_registry.register(pth)
-            return f"{route}/file/{new_pth}"
+    def js_embed(self, future: Future):  # noqa: F811
+        fid = self.register_future(future)
+        return f"$$BEAR.promise({fid})"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, vf: VirtualFile):
-            pth = vfile_registry.register(vf)
-            return f"{route}/vfile/{pth}"
+    def js_embed(self, queue: Queue):  # noqa: F811
+        qid = self.register_queue(queue)
+        return f"$$BEAR.queue({qid})"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, style: dict):
-            if attr == "style":
-                return ";".join(f"{k}:{v}" for k, v in style.items())
-            else:
-                raise TypeError(f"Cannot serialize a dict for attribute '{attr}'")
+    def js_embed(self, queue: FeedbackQueue):  # noqa: F811
+        qid = self.register_queue(queue)
+        return f"$$BEAR.queue({qid}, true)"
 
-        @attr_embed.register
-        def attr_embed(self, attr: str, obj: has_attribute("__attr_embed__")):
-            return obj.__attr_embed__(representer, attr)
+    @extend_super
+    def attr_embed(self, fn: Union[MethodType, FunctionType]):  # noqa: F811
+        method_id = self.register_object(fn)
+        return f"$$BEAR.event.call(this, $$BEAR.func({method_id}))"
 
-        self.js_embed = js_embed
-        self.attr_embed = attr_embed
+    def attr_embed(self, ref: Reference):  # noqa: F811
+        obj_id = self.register_object(ref.datum, id=ref.id)
+        return f"obj#{obj_id}"
 
-        self.printer = standard_html.fork(
-            js_embed=js_embed,
-            attr_embed=attr_embed,
-        )
+    def attr_embed(self, queue: Queue):  # noqa: F811
+        qid = self.register_queue(queue)
+        return f"$$BEAR.event.call(this, $$BEAR.queue({qid}))"
 
-    def generate(self, *args, **kwargs):
-        return self.printer.generate(*args, **kwargs)
+    def attr_embed(self, pth: Path):  # noqa: F811
+        new_pth = self.register_file(pth)
+        return f"{self.route}/file/{new_pth}"
 
-    def generate_string(self, element):
-        parts, extras, resources = self.printer.generate(element)
-        return str(parts)
-
-    def __call__(self, node):
-        return self.hrepr(node)
+    def attr_embed(self, vf: VirtualFile):  # noqa: F811
+        pth = self.register_vfile(vf)
+        return f"{self.route}/vfile/{pth}"
