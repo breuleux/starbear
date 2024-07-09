@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .page import Page
-from .ref import Reference
+from .reg import Reference
 
 constructors = {}
 

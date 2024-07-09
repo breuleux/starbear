@@ -5,7 +5,7 @@ from hrepr import H, Tag
 from hrepr.hgen import ResourceDeduplicator
 from hrepr.resource import Resource
 
-from .ref import Reference
+from .reg import Reference
 from .utils import format_error
 
 
@@ -317,3 +317,6 @@ class JavaScriptOperation:
             future=self.__future,
         )
         return iter(self.__future)
+
+    def __do__(self):
+        self.__element.do(_extractor(self.__root, self.__sequence))

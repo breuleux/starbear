@@ -8,7 +8,7 @@ from mimetypes import guess_type
 
 from hrepr.resource import JSExpression
 
-from .ref import Reference
+from .reg import Reference
 
 
 class StarbearHandler(logging.StreamHandler):
