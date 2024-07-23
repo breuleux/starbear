@@ -10,5 +10,5 @@ from .serve import (
     dev_injections,
     simplebear,
 )
-from .templating import template
+from .templating import Template, template
 from .utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap

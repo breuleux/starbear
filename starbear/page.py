@@ -3,6 +3,7 @@ from pathlib import Path
 
 from hrepr import H, J, Tag
 from hrepr.resource import Resource
+from hrepr.textgen_simple import Breakable, Sequence
 
 from .reg import Reference
 from .repr import StarbearHTMLGenerator
@@ -142,7 +143,7 @@ class Page:
 
         blk = self.hgen.blockgen(element)
 
-        if blk.processed_resources:
+        if send_resources and blk.processed_resources:
             yield {
                 "command": "resource",
                 "content": str(H.inline(blk.processed_resources)),
@@ -153,13 +154,27 @@ class Page:
             "method": method,
             "content": str(blk.result),
         }
-        if not blk.extra:
-            yield {
-                "command": "put",
-                "selector": sel,
-                "method": "beforeend",
-                "content": str(H.div(blk.processed_extra, style="display:none")),
-            }
+        for xtra in blk.processed_extra:
+            s = str(xtra.start)
+            e = str(xtra.end)
+            if (
+                isinstance(xtra, Breakable)
+                and s.startswith("<script")
+                and "src=" not in s
+                and e == "</script>"
+            ):
+                yield {
+                    "command": "eval",
+                    "code": str(Sequence(*xtra.body)),
+                    "module": 'type="module"' in s,
+                }
+            else:
+                yield {
+                    "command": "put",
+                    "selector": sel,
+                    "method": "beforeend",
+                    "content": str(H.div(xtra, style="display:none")),
+                }
 
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:
