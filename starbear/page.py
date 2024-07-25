@@ -232,7 +232,7 @@ class Page:
 
     def error(self, message, debug=None, exception=None):
         if not isinstance(message, str):
-            message = str(self.representer.hrepr(message))
+            message = str(self.hgen.hrepr(message))
         self.queue_command("error", content=format_error(message, debug, exception, self.debug))
 
     def log(self, message):
