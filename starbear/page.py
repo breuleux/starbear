@@ -43,6 +43,21 @@ class Component:
         return self.node
 
 
+class AwaitableJ(J):
+    def __init__(self, page=None, **kwargs):
+        super().__init__(**kwargs)
+        if page is not None:
+            self._data.page = page
+
+    def __await__(self):
+        future = aio.Future()
+        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), future))
+        return iter(future)
+
+    def __do__(self):
+        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), None))
+
+
 class Page:
     def __init__(
         self,
@@ -65,9 +80,9 @@ class Page:
         self.tasks = set()
         self.debug = debug
         self.loop = loop or aio.get_running_loop()
-        self.js = JavaScriptOperation(self, [])
-        self.window = JavaScriptOperation(self, [], root="window")
-        self.bearlib = JavaScriptOperation(self, [], root="$$BEAR")
+        self.js = AwaitableJ(page=self, object=self.selector)
+        self.window = AwaitableJ(page=self)
+        self.bearlib = AwaitableJ(page=self)["$$BEAR"]
 
     def __getitem__(self, selector):
         if not isinstance(selector, tuple):
@@ -295,42 +310,3 @@ class Page:
 
     async def recv(self):
         return await self.iq.get()
-
-
-def _extractor(root, sequence):
-    result = root
-    for entry in sequence:
-        if isinstance(entry, str):
-            result = f"{result}.{entry}"
-        elif isinstance(entry, (list, tuple)):
-            args = ",".join([str(Resource(x)) for x in entry])
-            result = f"{result}({args})"
-        else:
-            raise TypeError()
-    return f"{{ return {result}; }}"
-
-
-class JavaScriptOperation:
-    def __init__(self, element, sequence, root="this"):
-        self.__element = element
-        self.__sequence = sequence
-        self.__future = aio.Future()
-        self.__root = root
-
-    def __getattr__(self, attr):
-        return type(self)(self.__element, [*self.__sequence, attr], self.__root)
-
-    __getitem__ = __getattr__
-
-    def __call__(self, *args):
-        return type(self)(self.__element, [*self.__sequence, args], self.__root)
-
-    def __await__(self):
-        self.__element.do(
-            _extractor(self.__root, self.__sequence),
-            future=self.__future,
-        )
-        return iter(self.__future)
-
-    def __do__(self):
-        self.__element.do(_extractor(self.__root, self.__sequence))

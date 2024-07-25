@@ -641,19 +641,10 @@ export default class Starbear {
         return new RemoteReference(id);
     }
 
-    async cb(selector, extractor, promise) {
-        let root = window;
-
-        if (selector) {
-            root = document.querySelector(selector);
-            if (root.__object) {
-                root = (await (root.__object));
-            }
-        }
-
+    async cb(fn, promise) {
         if (promise) {
             try {
-                let result = await extractor.call(root);
+                let result = await fn();
                 await promise.resolve(result);
             }
             catch (exc) {
@@ -662,7 +653,7 @@ export default class Starbear {
             }
         }
         else {
-            extractor.call(root);
+            fn();
         }
     }
 
