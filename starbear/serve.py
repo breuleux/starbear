@@ -161,6 +161,8 @@ class BasicBear(AbstractBear):
         self._template_params = {
             "title": "Starbear",
             "body": "",
+            "resources": "",
+            "extra": "",
             "connect_line": "",
             "bearlib": bearlib_template,
             **template_params,
@@ -309,9 +311,15 @@ class LoneBear(BasicBear):
     async def route_main(self, request):
         response = await self.fn(request)
         if isinstance(response, Tag):
+            hgen = StarbearHTMLGenerator(self.representer)
             if response.name != "html":
-                response = self.template(body=response)
-            html = self.representer.generate_string(response)
+                blk = hgen.blockgen(response, seen_resources=set())
+                response = self.template(
+                    body=blk.result,
+                    resources=blk.processed_resources,
+                    extra=blk.processed_extra,
+                )
+            html = hgen.to_string(response)
             return HTMLResponse(f"<!DOCTYPE html>\n{html}")
         elif isinstance(response, dict):
             return JSONResponse(response)

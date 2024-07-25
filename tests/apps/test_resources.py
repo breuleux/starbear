@@ -23,7 +23,9 @@ async def __APP__(page):
 
     page.print(H.h3("Clicking the button should show 0, 2, 4, ... in the blue box above it"))
     page.print(fc_target := H.div["blue"]("xxxxx", id="fancy"))
-    fancy_counter = J(module=asset("fancy-counter.js"))(increment=2, target=page[fc_target], cls="c2")
+    fancy_counter = J(module=asset("fancy-counter.js"))(
+        increment=2, target=page[fc_target], cls="c2"
+    )
     page.print(fancy_counter)
 
 

@@ -628,7 +628,7 @@ export default class Starbear {
                 if (!response.ok) {
                     this.socket.error((await response.json()).message || "An error occurred");
                 }
-                return response;
+                return await response.json();
             }
             catch (error) {
                 this.socket.error(error.message);

@@ -149,14 +149,3 @@ def _template(tpl: Template, values: dict):
 @ovld
 def _template(node: object, values: dict):
     return node
-
-
-if __name__ == "__main__":
-    tpl = Template(Path(__file__).parent / "xx-template.html")
-    node = tpl(
-        title="__title__",
-        bearlib="__bearlib__",
-        body="__body__",
-        dev="__dev__",
-    )
-    print(str(node))
