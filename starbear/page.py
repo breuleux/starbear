@@ -12,10 +12,9 @@ from .utils import format_error
 
 def selector_for(x):
     if isinstance(x, Tag):
-        tid = x.attributes.get("id", None)
-        if not tid:
+        if not x.id:
             raise Exception("Cannot locate element because it has no id.")
-        return f"#{tid}"
+        return f"#{x.id}"
     elif isinstance(x, J):
         return f"#{x._get_id()}"
     elif isinstance(x, str):
@@ -51,11 +50,11 @@ class AwaitableJ(J):
 
     def __await__(self):
         future = aio.Future()
-        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), future))
+        self.__do__(future)
         return iter(future)
 
-    def __do__(self):
-        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), None))
+    def __do__(self, future=None):
+        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), future))
 
 
 class Page:
@@ -282,16 +281,11 @@ class Page:
     def delete(self):
         self.put_nowait("", "outerHTML")
 
-    def do(self, js, future=None):
-        call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
-        orig_code = call_template.format(
-            selector=Resource(self.selector),
-            extractor=f"function () {{ {js} }}",
-            future=Resource(future),
-        )
-        blk = self.hgen.block()
-        code = blk.expand_resources(orig_code, blk.js_embed)
-        self.queue_command("eval", selector=self.selector, code=code, history=False)
+    async def eval(self, code):
+        return await self.js.eval(code)
+
+    def exec(self, code, future=None):
+        self.js.exec(code).__do__(future)
 
     def toggle(self, toggle, value=None):
         return self.bearlib.toggle(self, toggle, value)
