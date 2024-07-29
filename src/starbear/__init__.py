@@ -1,14 +1,15 @@
-from hrepr import H
+from hrepr import H, J, returns
 
-from .constructors import BrowserEvent, FormData, NamespaceDict
-from .page import Component, Page, selector_for
-from .reg import Reference
-from .serve import (
+from .core.constructors import BrowserEvent, FormData, NamespaceDict
+from .core.page import Component, Page, selector_for
+from .core.reg import Reference
+from .core.serve import (
     ConfigurableBear,
     ConfigurableSimpleBear,
     bear,
     dev_injections,
     simplebear,
 )
-from .templating import Template, template
-from .utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap
+from .core.templating import Template, template
+from .core.utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap
+from .version import version

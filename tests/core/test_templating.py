@@ -1,5 +1,5 @@
 from hrepr import H, Tag
-from starbear.templating import template
+from starbear import template
 
 
 def test_template_int():
