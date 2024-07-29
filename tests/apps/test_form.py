@@ -9,8 +9,8 @@ async def __APP__(page):
     fq = q.wrap(form=True)
     page.print(
         H.form(
-            H.div(H.input(id="input1", oninput=fq)),
-            H.div(H.input(id="input2", oninput=fq)),
+            H.div(H.input(id="input1", name="input1", oninput=fq)),
+            H.div(H.input(id="input2", name="input2", oninput=fq)),
             H.div(H.button("Clicky!")),
             onsubmit=fq,
         ),

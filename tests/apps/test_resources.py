@@ -35,9 +35,9 @@ def test_page_template(app):
 
 
 def test_style(app):
-    style = app.locator("#added").evaluate("x => getComputedStyle(x)")
-    assert style["color"] == "rgb(0, 0, 255)"
-    assert style["border"] == "3px solid rgb(0, 0, 255)"
+    added = app.locator("#added")
+    assert added.evaluate("x => getComputedStyle(x).color") == "rgb(0, 0, 255)"
+    assert added.evaluate("x => getComputedStyle(x).border") == "3px solid rgb(0, 0, 255)"
 
 
 def test_counter(app):
