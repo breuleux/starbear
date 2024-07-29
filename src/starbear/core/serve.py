@@ -30,6 +30,8 @@ from .templating import Template, template
 from .utils import Queue, format_error, keyword_decorator, logger
 
 here = Path(__file__).parent
+templates_dir = here.parent / "templates"
+assets_dir = here.parent / "assets"
 
 _count = count()
 
@@ -50,7 +52,7 @@ _gc_message = (
 )
 
 
-bearlib_template = Template(here / "bearlib-template.html")
+bearlib_template = Template(templates_dir / "bearlib-template.html")
 
 
 def routeinfo(params="", path=None, root=False, cls=Route, **kw):
@@ -188,7 +190,7 @@ class BasicBear(AbstractBear):
             template_path,
             **agg_params,
             _asset=lambda name: self.template_asset(name, location),
-            _std=lambda name: self.template_asset(name, here),
+            _std=lambda name: self.template_asset(name, assets_dir),
         )
 
     def error_response(self, code, message, debug=None, exception=None):
@@ -274,7 +276,7 @@ class BasicBear(AbstractBear):
 class LoneBear(BasicBear):
     def __init__(self, fn, template=None, template_params={}, strongrefs=100):
         super().__init__(
-            template=template or (here / "page-template.html"),
+            template=template or (templates_dir / "page-template.html"),
             template_params=template_params,
         )
         self.strongrefs = strongrefs
@@ -339,7 +341,7 @@ class Cub(BasicBear):
         strongrefs=100,
     ):
         super().__init__(
-            template=template or (here / "page-template.html"),
+            template=template or (templates_dir / "page-template.html"),
             template_params={"connect_line": "bear.connect()", **template_params},
         )
         self.mother = mother
