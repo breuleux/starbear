@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from hrepr import H
-
 from starbear import Queue, bear
 from starbear.reg import Reference
 

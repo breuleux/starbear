@@ -409,68 +409,64 @@ Using libraries
 
 With all that has been mentioned so far, you can already kind of do whatever you want by printing the appropriate script tags. *But there is a better way.*
 
-.. Any HTML element can be given the ``__constructor`` attribute, which lets you load any script or ES6 module and then automatically call either its default export or a function of your choice, passing the newly-constructed element as an argument along with a dict of options.
-
-.. Not only that, Starbear also makes it possible to call JavaScript methods, from Python, on whatever object that function returns.
-
 For example, let's display a mathematical equation using Katex. Looking at the `installation instructions <https://katex.org/docs/browser.html>`_ and the `api instructions <https://katex.org/docs/api.html>`_, we can easily port this for use with Starbear:
 
 .. code-block:: python
 
+    from hrepr import J, H
+
     @bear
     async def app(page):
+        katex = J(
+            src="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.js",
+            stylesheet="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css"
+        ).katex
         page.print(
-            H.div(
-                __constructor = {
-                    "script": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.js",
-                    "symbol": "katex.render",
-                    "arguments": ["c = \\pm\\sqrt{a^2 + b^2}", H.self()],
-                    "stylesheet": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css",
-                }
+            katex.render(
+                "c = \\pm\\sqrt{a^2 + b^2}",
+                returns(H.div()),
             )
         )
 
 Here is what Starbear does when this structure is printed to the page:
 
-1. Append the ``script`` and ``stylesheet`` to ``<head>``, unless it has already been done,  and load them.
-2. Create a ``<div>`` with an auto-generated ID. Let us say it is in the ``element`` variable.
-3. Serialize ``arguments`` and send them over. ``H.self()`` resolves to a reference to ``element``.
-4. Call: ``katex.render("c = \\pm\\sqrt{a^2 + b^2}", element)``
-5. Stash the returned object in the element, in case we want to call methods on it later.
+1. Append the ``script`` and ``stylesheet`` to ``<head>``, unless it has already been done, and load them.
+2. Call ``katex.render`` on the expression and a new div.
+3. Insert the argument of ``returns(...)`` where the expression is located.
+4. Stash the object returned by ``katex.render`` in the aforementioned element, in case we want to call methods on it later.
 
 .. tip::
 
-    The ``arguments`` can contain any JSON-serializable data, but also any element that has an ID, a Python function, or a Queue!
+    The ``arguments`` can contain any JSON-serializable data, but also elements (dynamically constructed), existing elements through a selector (e.g. ``page[selector]``), Python function, or a Queue!
 
 .. note::
 
-    As explained in the title and style section, you may use ``pathlib.Path`` to refer to local files. For example, if you want to load the katex script from the server's local filesystem instead of going through a CDN: ``"script": Path("./assets/katex.js")``.
+    As explained in the title and style section, you may use ``pathlib.Path`` to refer to local files. For example, if you want to load the katex script from the server's local filesystem instead of going through a CDN: ``src=Path("./assets/katex.js")``.
 
 
 EcmaScript Modules
 ++++++++++++++++++
 
-You can also use the ESM version of Katex by setting ``module`` instead of ``script``:
+You can also use the ESM version of Katex by setting ``module`` (for the default export) or ``namespace`` (for named exports) instead of ``src``:
 
 .. code-block:: python
 
+    katex = J(
+        module="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.mjs",
+        stylesheet="https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css"
+    )
     page.print(
-        H.div(
-            __constructor = {
-                "module": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.mjs",
-                "symbol": "default.render",
-                "arguments": ["c = \\pm\\sqrt{a^2 + b^2}", H.self()],
-                "stylesheet": "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.css",
-            }
+        katex.render(
+            "c = \\pm\\sqrt{a^2 + b^2}",
+            returns(H.div()),
         )
     )
 
+Here are all the ways to use ``J``:
 
-The value of ``symbol`` is used to determine how to import the functionality:
-
-* ``symbol=None`` (the default if left out): ``import constructor from 'module'; constructor(...)``
-* ``symbol="render"``: ``import {render} from 'module'; render(...)``
-* ``symbol="x.y.z"``: ``import {x} from 'module'; x.y.z(...)``
-* ``symbol="default.y.z"``: ``import dflt from 'module'; dflt.y.z(...)``
-
-The documentation for how to use the ESM version of a library is not always the best, but it's preferable if you can make it work, because it does not pollute the global namespace. You also don't need to specify the ``symbol`` key if the default export is the right constructor to use.
+* ``J().fn`` is equivalent to using the global variable ``fn``
+* ``J(src=X).fn`` will insert a ``<script src=X>`` tag and will fetch the ``fn`` global variable (assuming the script sets it).
+* ``J(module=X).fn`` is equivalent to ``import tmp from X; tmp.fn``
+* ``J(namespace=X).fn`` is equivalent to ``import {fn} from X``
+* ``J(selector=X).fn`` is equivalent to ``document.querySelector(X).fn``
+* ``J(object=X).fn`` is equivalent to ``(await document.querySelector(X).__object).fn``

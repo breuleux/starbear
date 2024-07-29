@@ -1,5 +1,4 @@
 import requests
-
 from starbear.serve import simplebear
 
 from .utils import asset_getter
