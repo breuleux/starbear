@@ -1,26 +1,38 @@
-[tool.poetry]
+[project]
 name = "starbear"
 version = "0.1.7"
 description = "Framework for easy small local web apps or programs"
-authors = ["Olivier Breuleux <breuleux@gmail.com>"]
+authors = [
+    { name = "Olivier Breuleux", email = "breuleux@gmail.com" }
+]
+dependencies = [
+    "uvicorn>=0.30.3",
+    "starlette>=0.38.1",
+    "websockets>=12.0",
+    "hrepr~=0.7.0",
+    "lxml>=5.2.2",
+]
+readme = "README.md"
+requires-python = ">= 3.9"
 license = "MIT"
 
-[tool.poetry.dependencies]
-python = "^3.9"
-uvicorn = ">=0.17.6"
-starlette = ">=0.27.0"
-websockets = "^10.3"
-hrepr = "^0.6.1"
-lxml = "^4.9.3"
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.4.2"
-sphinx = "^5.3.0"
-sphinx-rtd-theme = "^1.1.1"
-
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=8.3.2",
+    "pytest-cov>=5.0.0",
+    "pytest-playwright>=0.5.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/starbear"]
 
 [tool.ruff]
 line-length = 99

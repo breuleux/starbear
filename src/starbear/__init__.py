@@ -1,8 +1,8 @@
 from hrepr import H
 
 from .constructors import BrowserEvent, FormData, NamespaceDict
-from .page import Component, JavaScriptOperation, Page, selector_for
-from .ref import Reference
+from .page import Component, Page, selector_for
+from .reg import Reference
 from .serve import (
     ConfigurableBear,
     ConfigurableSimpleBear,
@@ -10,5 +10,5 @@ from .serve import (
     dev_injections,
     simplebear,
 )
-from .templating import template
+from .templating import Template, template
 from .utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap

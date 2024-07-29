@@ -25,7 +25,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .constructors import NamespaceDict, construct
 from .page import Page
-from .repr import Representer
+from .repr import RepresenterState, StarbearHTMLGenerator
 from .templating import Template, template
 from .utils import Queue, format_error, keyword_decorator, logger
 
@@ -161,6 +161,8 @@ class BasicBear(AbstractBear):
         self._template_params = {
             "title": "Starbear",
             "body": "",
+            "resources": "",
+            "extra": "",
             "connect_line": "",
             "bearlib": bearlib_template,
             **template_params,
@@ -287,7 +289,7 @@ class LoneBear(BasicBear):
         self.ensure_router(request)
         if self.representer is None:
             self.route = self.path_for("main").rstrip("/")
-            self.representer = Representer(self.route, strongrefs=self.strongrefs)
+            self.representer = RepresenterState(self.route, strongrefs=self.strongrefs)
 
     def wrap_route(self, method, routeinfo):
         @wraps(method)
@@ -309,9 +311,15 @@ class LoneBear(BasicBear):
     async def route_main(self, request):
         response = await self.fn(request)
         if isinstance(response, Tag):
+            hgen = StarbearHTMLGenerator(self.representer)
             if response.name != "html":
-                response = self.template(body=response)
-            html = self.representer.generate_string(response)
+                blk = hgen.blockgen(response, seen_resources=set())
+                response = self.template(
+                    body=blk.result,
+                    resources=blk.processed_resources,
+                    extra=blk.processed_extra,
+                )
+            html = hgen.to_string(response)
             return HTMLResponse(f"<!DOCTYPE html>\n{html}")
         elif isinstance(response, dict):
             return JSONResponse(response)
@@ -340,7 +348,7 @@ class Cub(BasicBear):
         self.query_params = query_params
         self.session = session
         self.route = self.mother.path_for("main", process=self.process).rstrip("/")
-        self.representer = Representer(self.route, strongrefs=strongrefs)
+        self.representer = RepresenterState(self.route, strongrefs=strongrefs)
         self.iq = Queue()
         self.oq = Queue()
         self.history = []
@@ -409,7 +417,7 @@ class Cub(BasicBear):
         self.mother.declare_active(self)
         node = self.template()
         self.reset = True
-        html = self.representer.generate_string(node)
+        html = StarbearHTMLGenerator(self.representer).to_string(node)
         return HTMLResponse(
             f"<!DOCTYPE html>\n{html}",
             headers={

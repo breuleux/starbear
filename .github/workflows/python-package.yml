@@ -1,0 +1,73 @@
+name: Python package
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.12']
+    steps:
+    - name: Check out the code
+      uses: actions/checkout@v3
+    - name: Install rye
+      uses: eifinger/setup-rye@v4
+    - name: Pin Python version
+      run: rye pin ${{ matrix.python-version }}
+    - name: Sync dependencies
+      run: rye sync
+    - name: Lint check
+      run: rye check
+    - name: Check formatting
+      run: rye format --check
+
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.45.1-jammy
+    strategy:
+      matrix:
+        settings:
+        - python: '3.9'
+          browser: 'chromium'
+          coverage: false
+        - python: '3.10'
+          browser: 'chromium'
+          coverage: false
+        - python: '3.11'
+          browser: 'chromium'
+          coverage: false
+        - python: '3.12'
+          browser: 'chromium'
+          coverage: false
+        - python: '3.12'
+          browser: 'firefox'
+          coverage: false
+        - python: '3.12'
+          browser: 'webkit'
+          coverage: false
+    steps:
+    - name: Check out the code
+      uses: actions/checkout@v3
+    - name: Install rye
+      uses: eifinger/setup-rye@v4
+    - name: Pin Python version
+      run: rye pin ${{ matrix.settings.python }}
+    - name: Sync dependencies
+      run: rye sync
+    - name: Install browser
+      run: rye run playwright install ${{ matrix.settings.browser }}
+    - name: Test with pytest
+      if: ${{ !matrix.settings.coverage }}
+      run: env HOME=/root rye run pytest --browser ${{ matrix.settings.browser }}
+    - name: Test with pytest and coverage
+      if: ${{ matrix.settings.coverage }}
+      run: env HOME=/root rye run pytest --cov=src --cov-report term-missing --browser ${{ matrix.settings.browser }}
+    - name: Verify coverage
+      if: ${{ matrix.settings.coverage }}
+      run: rye run coverage report | tail -1 | egrep "TOTAL +[0-9]+ +0 +100%"

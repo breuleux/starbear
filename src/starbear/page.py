@@ -1,20 +1,21 @@
 import asyncio as aio
 from pathlib import Path
 
-from hrepr import H, Tag
-from hrepr.hgen import ResourceDeduplicator
-from hrepr.resource import Resource
+from hrepr import H, J, Tag
+from hrepr.textgen_simple import Breakable, Sequence
 
-from .ref import Reference
+from .reg import Reference
+from .repr import StarbearHTMLGenerator
 from .utils import format_error
 
 
 def selector_for(x):
     if isinstance(x, Tag):
-        tid = x.attributes.get("id", None)
-        if not tid:
+        if not x.id:
             raise Exception("Cannot locate element because it has no id.")
-        return f"#{tid}"
+        return f"#{x.id}"
+    elif isinstance(x, J):
+        return f"#{x._get_id()}"
     elif isinstance(x, str):
         return x
     elif isinstance(x, Reference):
@@ -36,6 +37,24 @@ class Component:
     def __hrepr__(self, H, hrepr):
         return self.node
 
+    def __h__(self):
+        return self.node
+
+
+class AwaitableJ(J):
+    def __init__(self, page=None, **kwargs):
+        super().__init__(**kwargs)
+        if page is not None:
+            self._data.page = page
+
+    def __await__(self):
+        future = aio.Future()
+        self.__do__(future)
+        return iter(future)
+
+    def __do__(self, future=None):
+        self._data.page.print(J()["$$BEAR"].cb(self.thunk(), future))
+
 
 class Page:
     def __init__(
@@ -43,7 +62,7 @@ class Page:
         instance,
         selector=None,
         track_history=True,
-        sent_resources=None,
+        hgen=None,
         debug=False,
         loop=None,
     ):
@@ -53,15 +72,15 @@ class Page:
         self.query_params = instance.query_params
         self.session = instance.session
         self.representer = instance.representer
+        self.hgen = hgen or StarbearHTMLGenerator(instance.representer)
         self.selector = selector
         self.track_history = track_history
-        self.sent_resources = sent_resources or ResourceDeduplicator()
         self.tasks = set()
         self.debug = debug
         self.loop = loop or aio.get_running_loop()
-        self.js = JavaScriptOperation(self, [])
-        self.window = JavaScriptOperation(self, [], root="window")
-        self.bearlib = JavaScriptOperation(self, [], root="$$BEAR")
+        self.js = AwaitableJ(page=self, object=self.selector)
+        self.window = AwaitableJ(page=self)
+        self.bearlib = AwaitableJ(page=self)["$$BEAR"]
 
     def __getitem__(self, selector):
         if not isinstance(selector, tuple):
@@ -78,7 +97,7 @@ class Page:
             instance=self.instance,
             selector=selector,
             track_history=self.track_history,
-            sent_resources=self.sent_resources,
+            hgen=self.hgen,
             debug=self.debug,
             loop=self.loop,
         )
@@ -91,7 +110,7 @@ class Page:
                 instance=self.instance,
                 selector=self.selector,
                 track_history=track_history,
-                sent_resources=self.sent_resources,
+                hgen=self.hgen,
                 debug=self.debug,
                 loop=self.loop,
             )
@@ -122,7 +141,7 @@ class Page:
         if isinstance(x, str):
             return H.span(x)
         else:
-            return self.representer.hrepr(x)
+            return self.hgen.hrepr(x)
 
     def _generate_put_commands(self, element, method, send_resources=False):
         sel = self.selector or "body"
@@ -135,27 +154,40 @@ class Page:
             }
             return
 
-        parts, extra, resources = self.representer.generate(
-            element, filter_resources=self.sent_resources if send_resources else None
-        )
-        if not resources.empty():
+        blk = self.hgen.blockgen(element)
+
+        if send_resources and blk.processed_resources:
             yield {
                 "command": "resource",
-                "content": str(resources),
+                "content": str(H.inline(blk.processed_resources)),
             }
         yield {
             "command": "put",
             "selector": sel,
             "method": method,
-            "content": str(parts),
+            "content": str(blk.result),
         }
-        if not extra.empty():
-            yield {
-                "command": "put",
-                "selector": sel,
-                "method": "beforeend",
-                "content": str(H.div(extra, style="display:none")),
-            }
+        for xtra in blk.processed_extra:
+            s = str(xtra.start)
+            e = str(xtra.end)
+            if (
+                isinstance(xtra, Breakable)
+                and s.startswith("<script")
+                and "src=" not in s
+                and e == "</script>"
+            ):
+                yield {
+                    "command": "eval",
+                    "code": str(Sequence(*xtra.body)),
+                    "module": 'type="module"' in s,
+                }
+            else:
+                yield {
+                    "command": "put",
+                    "selector": sel,
+                    "method": "beforeend",
+                    "content": str(H.div(xtra, style="display:none")),
+                }
 
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:
@@ -203,8 +235,8 @@ class Page:
             else:
                 raise TypeError("resource argument should be a Path or a Tag object")
 
-            parts, _, _ = self.representer.generate(node, filter_resources=None)
-            self.queue_command("resource", content=str(parts))
+            text = self.hgen.to_string(node)
+            self.queue_command("resource", content=text)
 
     def print(self, *elements, method="beforeend"):
         for element in elements:
@@ -213,7 +245,7 @@ class Page:
 
     def error(self, message, debug=None, exception=None):
         if not isinstance(message, str):
-            message = str(self.representer.hrepr(message))
+            message = str(self.hgen.hrepr(message))
         self.queue_command("error", content=format_error(message, debug, exception, self.debug))
 
     def log(self, message):
@@ -248,18 +280,11 @@ class Page:
     def delete(self):
         self.put_nowait("", "outerHTML")
 
-    def do(self, js, future=None):
-        call_template = "$$BEAR.cb({selector}, {extractor}, {future});"
-        orig_code = call_template.format(
-            selector=Resource(self.selector),
-            extractor=f"function () {{ {js} }}",
-            future=Resource(future),
-        )
-        code = self.representer.printer.expand_resources(
-            orig_code,
-            self.representer.js_embed,
-        )
-        self.queue_command("eval", selector=self.selector, code=code, history=False)
+    async def eval(self, code):
+        return await self.js.eval(code)
+
+    def exec(self, code, future=None):
+        self.js.exec(code).__do__(future)
 
     def toggle(self, toggle, value=None):
         return self.bearlib.toggle(self, toggle, value)
@@ -278,39 +303,3 @@ class Page:
 
     async def recv(self):
         return await self.iq.get()
-
-
-def _extractor(root, sequence):
-    result = root
-    for entry in sequence:
-        if isinstance(entry, str):
-            result = f"{result}.{entry}"
-        elif isinstance(entry, (list, tuple)):
-            args = ",".join([str(Resource(x)) for x in entry])
-            result = f"{result}({args})"
-        else:
-            raise TypeError()
-    return f"{{ return {result}; }}"
-
-
-class JavaScriptOperation:
-    def __init__(self, element, sequence, root="this"):
-        self.__element = element
-        self.__sequence = sequence
-        self.__future = aio.Future()
-        self.__root = root
-
-    def __getattr__(self, attr):
-        return type(self)(self.__element, [*self.__sequence, attr], self.__root)
-
-    __getitem__ = __getattr__
-
-    def __call__(self, *args):
-        return type(self)(self.__element, [*self.__sequence, args], self.__root)
-
-    def __await__(self):
-        self.__element.do(
-            _extractor(self.__root, self.__sequence),
-            future=self.__future,
-        )
-        return iter(self.__future)

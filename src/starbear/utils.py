@@ -8,7 +8,7 @@ from mimetypes import guess_type
 
 from hrepr.resource import JSExpression
 
-from .ref import Reference
+from .reg import Reference
 
 
 class StarbearHandler(logging.StreamHandler):
@@ -185,5 +185,5 @@ class ClientWrap:
         options = representer.js_embed(self.options)
         return f"$$BEAR.wrap({fn}, {options})"
 
-    def __attr_embed__(self, representer, attr):
-        return f"$$BEAR.event.call(this, {representer.js_embed(self)})"
+    def __attr_embed__(self, gen):
+        return f"$$BEAR.event.call(this, {gen.js_embed(self)})"

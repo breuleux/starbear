@@ -119,7 +119,7 @@ class FormData {
 ///////////////////////
 
 
-export default class Tabular {
+export class Tabular {
     constructor(element, options) {
         this.element = element;
         this.active = null;
@@ -313,45 +313,71 @@ function distribute(html, targets, method, sock, params) {
 // Socket-received commands //
 //////////////////////////////
 
-
 let commands = {
-    put(sock, params) {
+    async put(sock, params) {
         const targets = document.querySelectorAll(params.selector);
         distribute(params.content, targets, params.method, sock, params);
     },
 
-    resource(sock, params) {
+    async resource(sock, params) {
         params.selector = "head";
         params.method = params.method || "beforeend";
         params.add_onload_hooks = true;
         commands.put(sock, params);
     },
 
-    eval(sock, params) {
+    async eval(sock, params) {
         const context = params.selector && document.querySelector(params.selector);
-        const func = (
-            params.async
-            ? new AsyncFunction(params.code)
-            : new Function(params.code)
-        );
-        func.call(context);
+        if (params.module) {
+            const script  = document.createElement("script");
+            script.setAttribute("type", "module");
+            script.text = params.code;
+            document.body.appendChild(script);
+            script.remove();
+        }
+        else {
+            try {
+                if (params.async) {
+                    const func = new AsyncFunction(params.code);
+                    await func.call(context);
+                }
+                else {
+                    const func = new Function(params.code);
+                    func.call(context);
+                }
+            }
+            catch (error) {
+                $$ERROR?.(error, params.selector);
+            }
+        }
     },
 
-    log(sock, params) {
+    async log(sock, params) {
         let node = document.createElement("div");
         node.innerHTML = params.content;
         sock.tabs.write("logs", node, true);
     },
 
-    error(sock, params) {
+    async error(sock, params) {
         let node = document.createElement("div");
         node.innerHTML = params.content;
         sock.tabs.write("errors", node);
     },
 
-    reload(sock, params) {
+    async reload(sock, params) {
         window.location.reload();
     }
+}
+
+
+function withResolvers() {
+    // LATER: use Promise.withResolvers() when it has wider support
+    let resolve, reject;
+    const promise = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return {promise, resolve, reject};
 }
 
 
@@ -405,12 +431,10 @@ class Socket {
 
     requireWait(token) {
         if (this.waitPromise === null) {
-            this.waitPromise = new Promise(
-                (resolve, reject) => {
-                    this._resolve = resolve;
-                    this._reject = reject;
-                }
-            )
+            const {promise, resolve, reject} = withResolvers();
+            this.waitPromise = promise;
+            this._resolve = resolve;
+            this._reject = reject;
             this.waitReasons = [];
         }
         this.waitReasons.push(token);
@@ -438,7 +462,7 @@ class Socket {
                 let entry = this.queue.shift();
                 let method = commands[entry.command];
                 if (method !== undefined) {
-                    method(this, entry);
+                    await method(this, entry);
                 }
                 else {
                     console.log(`[socket] Cannot parse message: ${entry}`);
@@ -577,7 +601,7 @@ class RemoteReference {
 }
 
 
-export class Starbear {
+export default class Starbear {
     constructor(route) {
         this.route = route;
         this.socket = new Socket(`${this.route}/socket`);
@@ -604,7 +628,7 @@ export class Starbear {
                 if (!response.ok) {
                     this.socket.error((await response.json()).message || "An error occurred");
                 }
-                return response;
+                return await response.json();
             }
             catch (error) {
                 this.socket.error(error.message);
@@ -617,19 +641,10 @@ export class Starbear {
         return new RemoteReference(id);
     }
 
-    async cb(selector, extractor, promise) {
-        let root = window;
-
-        if (selector) {
-            root = document.querySelector(selector);
-            if (root.__object) {
-                root = (await (root.__object));
-            }
-        }
-
+    async cb(fn, promise) {
         if (promise) {
             try {
-                let result = await extractor.call(root);
+                let result = await fn();
                 await promise.resolve(result);
             }
             catch (exc) {
@@ -638,7 +653,7 @@ export class Starbear {
             }
         }
         else {
-            extractor.call(root);
+            fn();
         }
     }
 
