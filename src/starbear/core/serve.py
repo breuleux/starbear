@@ -615,18 +615,6 @@ class MotherBear(AbstractBear):
         ]
 
 
-class ConfigurableBear(MotherBear):
-    def __init__(self, config, **params):
-        super().__init__(self.app, **params)
-        self.config = config
-
-
-class ConfigurableSimpleBear(LoneBear):
-    def __init__(self, config, **params):
-        super().__init__(self.app, **params)
-        self.config = config
-
-
 @keyword_decorator
 def bear(fn, **kwargs):
     return MotherBear(fn, **kwargs)

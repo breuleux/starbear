@@ -4,8 +4,6 @@ from .core.constructors import BrowserEvent, FormData, NamespaceDict
 from .core.page import Component, Page, selector_for
 from .core.reg import Reference
 from .core.serve import (
-    ConfigurableBear,
-    ConfigurableSimpleBear,
     bear,
     dev_injections,
     simplebear,
