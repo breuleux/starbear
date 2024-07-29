@@ -59,7 +59,7 @@ jobs:
     - name: Sync dependencies
       run: rye sync
     - name: Install browser
-      run: playwright install ${{ matrix.settings.browser }}
+      run: rye run playwright install ${{ matrix.settings.browser }}
     - name: Test with pytest
       if: ${{ !matrix.settings.coverage }}
       run: rye run pytest
