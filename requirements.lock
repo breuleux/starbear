@@ -12,8 +12,12 @@
 -e file:.
 anyio==4.4.0
     # via starlette
+apischema==0.18.1
+    # via gifnoc
 click==8.1.7
     # via uvicorn
+gifnoc==0.3.4
+    # via starbear
 h11==0.14.0
     # via uvicorn
 hrepr==0.7.0
@@ -23,7 +27,10 @@ idna==3.7
 lxml==5.2.2
     # via starbear
 ovld==0.3.6
+    # via gifnoc
     # via hrepr
+pyyaml==6.0.1
+    # via starbear
 sniffio==1.3.1
     # via anyio
 starlette==0.38.1
