@@ -2,9 +2,7 @@ import asyncio as aio
 import base64
 import inspect
 import json
-import os
 import traceback
-from contextvars import ContextVar
 from functools import cached_property, wraps
 from itertools import count, islice
 from pathlib import Path
@@ -23,6 +21,7 @@ from starlette.responses import (
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from .. import config
 from .constructors import NamespaceDict, construct
 from .page import Page
 from .repr import RepresenterState, StarbearHTMLGenerator
@@ -34,10 +33,6 @@ templates_dir = here.parent / "templates"
 assets_dir = here.parent / "assets"
 
 _count = count()
-
-dev_injections = []
-
-debug_mode = ContextVar("debug_mode", default=int(os.environ.get("STARBEAR_DEBUG", 0)))
 
 _gc_message = (
     "It may have been garbage-collected."
@@ -183,7 +178,7 @@ class BasicBear(AbstractBear):
         agg_params = {
             **self._template_params,
             "route": self.route,
-            "dev": dev_injections,
+            "dev": config.dev.inject,
             **params,
         }
         return template(
@@ -198,7 +193,7 @@ class BasicBear(AbstractBear):
             message=message,
             debug=debug,
             exception=exception,
-            show_debug=debug_mode.get(),
+            show_debug=config.dev.debug_mode,
         )
         return JSONResponse({"message": msg}, status_code=code)
 
@@ -356,7 +351,7 @@ class Cub(BasicBear):
         self.history = []
         self.reset = False
         self.ws = None
-        self.page = Page(instance=self, debug=debug_mode.get())
+        self.page = Page(instance=self, debug=config.dev.debug_mode)
         self.coro = aio.create_task(self.run())
         self.log("info", "Created process")
 
