@@ -1,5 +1,6 @@
 from hrepr import H, J, returns
 
+from .common import UsageError, here
 from .config import config
 from .core.app import bear, simplebear
 from .core.constructors import BrowserEvent, FormData, NamespaceDict

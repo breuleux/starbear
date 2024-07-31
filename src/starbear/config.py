@@ -12,6 +12,7 @@ class StarbearDevConfig:
 
 @dataclass
 class StarbearConfig(gifnoc.Extensible):
+    command: str = "serve"
     dev: StarbearDevConfig = field(default_factory=StarbearDevConfig)
 
 
