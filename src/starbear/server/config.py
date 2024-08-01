@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import gifnoc
+from gifnoc import TaggedSubclass
 
 from ..common import UsageError
 from .find import collect_locations, collect_routes, collect_routes_from_module
@@ -25,6 +26,14 @@ class StarbearSSLConfig:
     keyfile: Path = None
     # SSL certificate file
     certfile: Path = None
+
+
+@dataclass
+class StarbearServerPlugin:
+    enabled: bool = True
+
+    def setup(self, server):
+        pass
 
 
 @dataclass
@@ -45,6 +54,8 @@ class StarbearServerBaseConfig:
     reload_mode: str = "jurigged"
     # SSL configuration
     ssl: StarbearSSLConfig = field(default_factory=StarbearSSLConfig)
+    # Plugins
+    plugins: list[TaggedSubclass[StarbearServerPlugin]] = field(default_factory=list)
 
     def __post_init__(self):
         override = os.environ.get("STARBEAR_RELOAD_OVERRIDE", None)
