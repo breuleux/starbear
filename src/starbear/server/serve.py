@@ -1,6 +1,7 @@
 import threading
 import webbrowser
 from functools import cached_property
+from graphlib import TopologicalSorter
 from pathlib import Path
 from textwrap import dedent
 
@@ -14,6 +15,7 @@ from ..common import logger
 from ..config import config as base_config
 from .config import StarbearServerConfig
 from .find import compile_routes
+from .plugins.session import Session
 
 
 class ThreadedServer(uvicorn.Server):
@@ -26,7 +28,7 @@ class ThreadedServer(uvicorn.Server):
 
 
 class StarbearServer:
-    def __init__(self, config):
+    def __init__(self, config: StarbearServerConfig):
         self.config = config
 
     @cached_property
@@ -97,10 +99,37 @@ class StarbearServer:
             # This doesn't seem to do anything?
             app.add_middleware(HTTPSRedirectMiddleware)
 
-        for plugin in self.config.plugins:
-            plugin.setup(self)
-
         self.app = app
+
+        plugins = {name: p for name, p in self.config.plugins.items() if p.enabled}
+
+        exports = {}
+        for i, p in plugins.items():
+            exports.update({x: i for x in p.cap_export()})
+
+        if "session" not in exports:
+            assert "session" not in plugins
+            exports["session"] = "session"
+            plugins["session"] = Session(enabled=True, required=False)
+
+        def locate_dependencies(p):
+            for x in p.cap_require():
+                if x not in exports:
+                    raise Exception(
+                        f"Plugin '{i}' of type '{type(p).__name__}' requires the '{x}' feature, but none of the included plugins exports it."
+                    )
+                plugins[exports[x]].required = True
+                yield exports[x]
+
+        graph = {i: list(locate_dependencies(p)) for i, p in plugins.items()}
+        order = TopologicalSorter(graph).static_order()
+
+        for plugin_index in reversed(list(order)):
+            p = plugins[plugin_index]
+            if p.required:
+                logger.info(f"Set up plugin: {plugin_index}")
+                p.setup(self)
+
         self.inject_routes()
 
     def run(self):

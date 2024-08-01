@@ -11,6 +11,7 @@
 
 -e file:.
 anyio==4.4.0
+    # via httpx
     # via sse-starlette
     # via starlette
 apischema==0.18.1
@@ -20,6 +21,8 @@ authlib==1.3.1
 blessed==1.20.0
     # via jurigged
 certifi==2024.7.4
+    # via httpcore
+    # via httpx
     # via requests
 cffi==1.16.0
     # via cryptography
@@ -38,11 +41,17 @@ gifnoc==0.3.4
 greenlet==3.0.3
     # via playwright
 h11==0.14.0
+    # via httpcore
     # via uvicorn
 hrepr==0.7.0
     # via starbear
+httpcore==1.0.5
+    # via httpx
+httpx==0.27.0
+    # via starbear
 idna==3.7
     # via anyio
+    # via httpx
     # via requests
 iniconfig==2.0.0
     # via pytest
@@ -84,6 +93,7 @@ six==1.16.0
     # via blessed
 sniffio==1.3.1
     # via anyio
+    # via httpx
 sse-starlette==2.1.2
     # via starbear
 starlette==0.38.1
