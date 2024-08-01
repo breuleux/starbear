@@ -97,6 +97,9 @@ class StarbearServer:
             # This doesn't seem to do anything?
             app.add_middleware(HTTPSRedirectMiddleware)
 
+        for plugin in self.config.plugins:
+            plugin.setup(self)
+
         self.app = app
         self.inject_routes()
 
