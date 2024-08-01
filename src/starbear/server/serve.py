@@ -10,7 +10,8 @@ from hrepr import H
 from starlette.applications import Starlette
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
 
-from ..core.utils import logger
+from ..common import logger
+from ..config import config as base_config
 from .config import StarbearServerConfig
 from .find import compile_routes
 
@@ -102,7 +103,14 @@ class StarbearServer:
     def run(self):
         self._setup()
         with gifnoc.overlay(
-            {"starbear": {"dev": {"debug_mode": self.config.dev, "inject": self.inject}}}
+            {
+                "starbear": {
+                    "dev": {
+                        "debug_mode": base_config.dev.debug_mode or self.config.dev,
+                        "inject": self.inject,
+                    }
+                }
+            }
         ):
             uconfig = uvicorn.Config(
                 app=self.app,
