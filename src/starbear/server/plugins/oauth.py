@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field
 
-from authlib.integrations.starlette_client import OAuth
-from hrepr import H
+from authlib.integrations.starlette_client import OAuth as OAuthClient
 from starlette.config import Config
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.responses import RedirectResponse
 
 from ..config import StarbearServerPlugin
 
@@ -15,17 +14,12 @@ class OAuthMiddleware(BaseHTTPMiddleware):
     Arguments:
         app: The application this middleware is added to.
         oauth: The OAuth object.
-        is_authorized: A function that takes (user, path) and returns whether the
-            given user can access the given path. In all cases, the user must identify
-            themselves through OAuth prior to this. The user's email is in `user["email"]`.
-            The default function always returns True.
     """
 
-    def __init__(self, app, oauth, is_authorized=lambda user, path: True):
+    def __init__(self, app, oauth):
         super().__init__(app)
         self.oauth = oauth
         self.router = app
-        self.is_authorized = is_authorized
         while not hasattr(self.router, "add_route"):
             self.router = self.router.app
         self.add_routes()
@@ -52,20 +46,13 @@ class OAuthMiddleware(BaseHTTPMiddleware):
         return RedirectResponse(url="/")
 
     async def dispatch(self, request, call_next):
-        if (path := request.url.path).startswith("/_/"):
+        if request.url.path.startswith("/_/"):
             return await call_next(request)
 
         user = request.session.get("user")
         if not user:
             request.session["redirect_after_login"] = str(request.url)
             return RedirectResponse(url="/_/login")
-        elif not self.is_authorized(user, path):
-            content = H.body(
-                H.h2("Forbidden"),
-                H.p("User ", H.b(user["email"]), " cannot access this page."),
-                H.a("Logout", href="/_/logout"),
-            )
-            return HTMLResponse(str(content), status_code=403)
         else:
             return await call_next(request)
 
@@ -77,17 +64,21 @@ class OAuth(StarbearServerPlugin):
     client_kwargs: dict = field(default_factory=dict)
     environ: dict = field(default_factory=dict)
 
+    def cap_require(self):
+        return ["session"]
+
+    def cap_export(self):
+        return ["email"]
+
     def setup(self, server):
-        oauth_config = Config(environ=self.oauth.environ)
-        oauth_module = OAuth(oauth_config)
+        oauth_config = Config(environ=self.environ)
+        oauth_module = OAuthClient(oauth_config)
         oauth_module.register(
-            name=self.oauth.name,
-            server_metadata_url=self.oauth.server_metadata_url,
-            client_kwargs=self.oauth.client_kwargs,
+            name=self.name,
+            server_metadata_url=self.server_metadata_url,
+            client_kwargs=self.client_kwargs,
         )
         server.app.add_middleware(
             OAuthMiddleware,
             oauth=oauth_module,
-            # is_authorized=permissions,
         )
-        # server.app.add_middleware(SessionMiddleware, secret_key=uuid4().hex)

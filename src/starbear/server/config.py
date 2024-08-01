@@ -30,7 +30,17 @@ class StarbearSSLConfig:
 
 @dataclass
 class StarbearServerPlugin:
+    # Whether the plugin is enabled
     enabled: bool = True
+
+    # Whether the plugin is required (if false, only include if needed by another plugin)
+    required: bool = True
+
+    def cap_require(self):
+        return []
+
+    def cap_export(self):
+        return []
 
     def setup(self, server):
         pass
@@ -55,7 +65,7 @@ class StarbearServerBaseConfig:
     # SSL configuration
     ssl: StarbearSSLConfig = field(default_factory=StarbearSSLConfig)
     # Plugins
-    plugins: list[TaggedSubclass[StarbearServerPlugin]] = field(default_factory=list)
+    plugins: dict[str, TaggedSubclass[StarbearServerPlugin]] = field(default_factory=dict)
 
     def __post_init__(self):
         override = os.environ.get("STARBEAR_RELOAD_OVERRIDE", None)
