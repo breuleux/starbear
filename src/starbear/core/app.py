@@ -22,11 +22,12 @@ from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from .. import config
+from ..common import logger
 from .constructors import NamespaceDict, construct
 from .page import Page
 from .repr import RepresenterState, StarbearHTMLGenerator
 from .templating import Template, template
-from .utils import Queue, format_error, keyword_decorator, logger
+from .utils import Queue, format_error, keyword_decorator
 
 here = Path(__file__).parent
 templates_dir = here.parent / "templates"

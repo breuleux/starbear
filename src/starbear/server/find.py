@@ -3,6 +3,7 @@
 import importlib
 import pkgutil
 import runpy
+import sys
 from functools import reduce
 from pathlib import Path
 
@@ -54,11 +55,12 @@ def collect_routes(path):
         raise FileNotFoundError(f"Cannot find route from non-existent path: {path}")
 
     if path.is_dir():
+        sys.path.append(str(path.parent))
         mod = importlib.import_module(path.stem)
         return {"/": collect_routes_from_module(mod)}
 
     else:
-        glb = runpy.run_path(path)
+        glb = runpy.run_path(str(path))
         return {"/": glb["__app__"]}
 
 

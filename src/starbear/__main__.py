@@ -18,6 +18,7 @@ def main(argv=None):
                 "serve": Command(
                     mount="starbear.server",
                     options={
+                        "starbear.dev.debug_mode": "--debug",
                         ".root": "--root",
                         ".module": Option(aliases=["--module", "-m"]),
                         ".port": Option(aliases=["--port", "-p"]),
@@ -40,13 +41,13 @@ def main(argv=None):
             try:
                 server = StarbearServer(server_config)
                 server.run()
-            except UsageError as exc:
+            except UsageError as exc:  # pragma: no cover
                 exit(f"ERROR: {exc}")
-            except FileNotFoundError as exc:
+            except FileNotFoundError as exc:  # pragma: no cover
                 exit(f"ERROR: File not found: {exc}")
-        else:
+        else:  # pragma: no cover
             assert False
 
 
-if __name__ == "__main__":
-    main(sys.argv)
+if __name__ == "__main__":  # pragma: no cover
+    main()

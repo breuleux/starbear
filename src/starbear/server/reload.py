@@ -1,9 +1,11 @@
 import asyncio
+import atexit
 import json
 import logging
 import os
 import sys
 from asyncio import Future
+from pathlib import Path
 from uuid import uuid4
 
 from sse_starlette.sse import EventSourceResponse
@@ -11,6 +13,26 @@ from starlette.routing import Route
 from watchdog.observers import Observer
 
 logger = logging.getLogger("starbear")
+
+
+def restart():  # pragma: no cover
+    # Note: It may be difficult to get coverage for this file, because restart() may prevent coverage
+    # data from being written to the file.
+
+    def x(args):
+        atexit._run_exitfuncs()
+        os.execl(sys.executable, sys.executable, *args)  # pragma: no cover
+
+    p = Path(sys.argv[0])
+    if p.name == "__main__.py":
+        init = p.parent / "__init__.py"
+        for m, obj in sys.modules.items():
+            if getattr(obj, "__file__", None) == str(init):
+                x(["-m", m, *sys.argv[1:]])
+        else:
+            raise SystemError("Cannot figure out how to restart starbear.")
+    else:
+        x(sys.argv)
 
 
 class Looper:
@@ -71,7 +93,7 @@ class BaseReloader(InertReloader):
 
     def code_watch(self, watch):
         self.obs = Observer()
-        if not isinstance(watch, list):
+        if not isinstance(watch, list):  # pragma: no cover
             watch = [watch]
         for w in watch:
             self.obs.schedule(self, w, recursive=True)
@@ -86,7 +108,7 @@ class BaseReloader(InertReloader):
             tuple(self.server.config.socket.getsockname())
         )
         self.server.config.socket.close()
-        os.execv(sys.argv[0], sys.argv)
+        restart()
 
     def inject_routes(self, routes):
         routes.insert(0, Route(f"/!!{self.uuid}/events", self.route_events))

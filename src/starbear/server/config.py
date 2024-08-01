@@ -14,7 +14,7 @@ import gifnoc
 
 from ..common import UsageError
 from .find import collect_locations, collect_routes, collect_routes_from_module
-from .reload import FullReloader, InertReloader, JuriggedReloader
+from .reload import BaseReloader, FullReloader, InertReloader, JuriggedReloader
 
 
 @dataclass
@@ -83,6 +83,8 @@ class StarbearServerBaseConfig:
     def get_reloader(self, server):
         if not self.dev:
             return InertReloader(server)
+        elif self.reload_mode == "manual":
+            return BaseReloader(server)
         elif self.reload_mode == "jurigged":
             return JuriggedReloader(server)
         else:
