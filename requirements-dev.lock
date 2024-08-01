@@ -95,6 +95,7 @@ typing-extensions==4.12.2
     # via pyee
 urllib3==2.2.2
     # via requests
+uv==0.2.32
 uvicorn==0.30.3
     # via sse-starlette
     # via starbear

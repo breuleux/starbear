@@ -10,6 +10,7 @@ from .server.config import config as server_config
 
 
 def main(argv=None):
+    sys.path.append(".")
     with gifnoc.cli(
         argparser=argparse.ArgumentParser(description="Start a Starbear application."),
         options=Command(

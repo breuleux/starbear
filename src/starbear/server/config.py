@@ -8,7 +8,7 @@ import socket
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import gifnoc
 from gifnoc import TaggedSubclass
@@ -43,7 +43,7 @@ class StarbearServerBaseConfig:
     # Hostname to serve from
     host: str = "127.0.0.1"
     # Path to watch for changes with jurigged
-    watch: str | bool = None
+    watch: Union[str, bool] = None
     # Run in development mode
     dev: bool = False
     # Automatically open browser
@@ -113,7 +113,7 @@ class StarbearServerConfig(StarbearServerBaseConfig):
     # Directory or script
     root: str = None
     # Name of the module to run
-    module: str | Any = None
+    module: Union[str, Any] = None
     # Explicitly given routes
     routes: dict = None
 
