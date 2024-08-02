@@ -42,6 +42,8 @@ dev-dependencies = [
     "pytest-cov>=5.0.0",
     "pytest-playwright>=0.5.1",
     "uv>=0.2.32",
+    "sphinx<8",
+    "sphinx-rtd-theme>=2.0.0",
 ]
 
 [tool.hatch.metadata]

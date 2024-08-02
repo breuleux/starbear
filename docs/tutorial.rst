@@ -137,6 +137,7 @@ Then, you can define your template like this:
 You can also use templates dynamically. For example, if you have a header in ``header.html``, this code would replace the contents of ``#top`` by the filled-in template.
 
 .. code-block:: python
+
     page["#top"].template(
         Path("header.html"),
         email=user_email,
