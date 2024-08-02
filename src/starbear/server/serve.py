@@ -127,8 +127,12 @@ class StarbearServer:
         for plugin_index in reversed(list(order)):
             p = plugins[plugin_index]
             if p.required:
+                assert not hasattr(self, plugin_index)
+                setattr(plugin_index, p)
                 logger.info(f"Set up plugin: {plugin_index}")
                 p.setup(self)
+
+        self.app.starbear_instance = self
 
         self.inject_routes()
 
