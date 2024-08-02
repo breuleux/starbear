@@ -28,17 +28,22 @@ def venus_mod(page, clone):
     return load
 
 
-def test_manual(venus_mod):
+@pytest.fixture
+def pause(request):
+    return request.config.getoption("--reload-pause")
+
+
+def test_manual(venus_mod, pause):
     with venus_mod("--dev", "--reload-mode", "manual", regoto=True) as page:
         page.locator('.bear--tabular-button:has-text("⟳")').click()
-        time.sleep(1)
+        time.sleep(pause)
 
 
-def test_jurigged(venus_mod):
+def test_jurigged(venus_mod, pause):
     with venus_mod("--dev"):
-        time.sleep(0.5)
+        time.sleep(pause)
 
 
-def test_full(venus_mod):
+def test_full(venus_mod, pause):
     with venus_mod("--dev", "--reload-mode", "full", regoto=True):
-        time.sleep(1)
+        time.sleep(pause)
