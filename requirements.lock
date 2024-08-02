@@ -51,7 +51,7 @@ jurigged==0.5.8
     # via starbear
 lxml==5.2.2
     # via starbear
-ovld==0.3.6
+ovld==0.3.7
     # via gifnoc
     # via hrepr
     # via jurigged
