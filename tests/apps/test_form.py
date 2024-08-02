@@ -1,3 +1,5 @@
+import time
+
 from hrepr import H
 from starbear import Queue, bear
 
@@ -26,8 +28,11 @@ def test_title(app):
 
 def test_manipulate(app):
     app.locator("#input1").fill("wow")
+    time.sleep(0.05)
     assert app.locator("#output").inner_text() == "I say wow and ?"
     app.locator("#input2").fill("cool")
+    time.sleep(0.05)
     assert app.locator("#output").inner_text() == "I say wow and cool?"
     app.locator("button").click()
+    time.sleep(0.05)
     assert app.locator("#output").inner_text() == "I say wow and cool!"

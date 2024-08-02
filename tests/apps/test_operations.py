@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from hrepr import H
 from starbear import bear
@@ -34,6 +36,7 @@ def check(app):
 def click(app):
     def fn(lbl):
         app.get_by_text(lbl).click()
+        time.sleep(0.05)
 
     return fn
 

@@ -52,7 +52,7 @@ async def app(page):
         H.button("Click me!", onclick=q),
         H.div(
             # This is the span we want to update, so we put it in a variable
-            target := H.span("0").autoid(),
+            target := H.span("0", id=True),
             " clicks"
         )
     )
