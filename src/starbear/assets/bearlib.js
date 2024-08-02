@@ -625,10 +625,11 @@ export default class Starbear {
                     },
                     body: JSON.stringify(args),
                 })
+                let body = await response.json()
                 if (!response.ok) {
-                    this.socket.error((await response.json()).message || "An error occurred");
+                    this.socket.error(body.message || "An error occurred");
                 }
-                return await response.json();
+                return body;
             }
             catch (error) {
                 this.socket.error(error.message);

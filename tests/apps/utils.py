@@ -1,8 +1,10 @@
 import threading
 import time
 from contextlib import contextmanager
+from functools import partial
 from pathlib import Path
 
+import gifnoc
 import uvicorn
 
 
@@ -10,10 +12,14 @@ class ThreadableServer(uvicorn.Server):
     def install_signal_handlers(self):
         pass
 
+    def run(self, config=None):
+        with gifnoc.use(config or None):
+            super().run()
+
     @contextmanager
-    def run_in_thread(self):
+    def run_in_thread(self, config=None):
         # Code taken from https://stackoverflow.com/questions/61577643/python-how-to-use-fastapi-and-uvicorn-run-without-blocking-the-thread
-        thread = threading.Thread(target=self.run)
+        thread = threading.Thread(target=partial(self.run, config))
         thread.start()
         try:
             while not self.started:
