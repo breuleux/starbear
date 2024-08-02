@@ -1,4 +1,5 @@
 from hrepr import H, J, returns
+from hrepr.resource import Resource
 
 from .common import UsageError, here
 from .config import config

@@ -24,3 +24,22 @@ def app(page, app_config) -> Generator[Page, Any, Any]:
     yield page
     if not getattr(page, "disable_error_check", False):
         assert page.locator(".bear--tabular").inner_text() == ""
+
+
+@pytest.fixture(scope="module")
+def app_debug_config(request):
+    mb = request.module.__APP__
+    port = 9183
+    config = uvicorn.Config(app=mb, port=port)
+    server = ThreadableServer(config=config)
+    with server.run_in_thread(config={"starbear": {"dev": {"debug_mode": True}}}):
+        yield config
+
+
+@pytest.fixture
+def app_debug(page, app_debug_config) -> Generator[Page, Any, Any]:
+    page.goto("http://127.0.0.1:9183/")
+    page.set_default_timeout(500)
+    yield page
+    if not getattr(page, "disable_error_check", False):
+        assert page.locator(".bear--tabular").inner_text() == ""

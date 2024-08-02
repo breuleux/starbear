@@ -7,6 +7,8 @@ import sys
 from functools import reduce
 from pathlib import Path
 
+import starbear
+import starlette
 from ovld import ovld
 from starlette.routing import Mount, Route
 
@@ -66,10 +68,10 @@ def collect_routes(path):
 
 @ovld
 def compile_routes(path, routes: dict):
-    routes = dict(routes)
+    routes = {pth.rstrip("/"): r for pth, r in routes.items()}
     if "/" not in routes:
-        if "/index/" in routes:
-            routes["/"] = routes["/index/"]
+        if "/index" in routes:
+            routes["/"] = routes["/index"]
         else:
             routes["/"] = Index()
     return _mount(
@@ -94,6 +96,18 @@ def compile_routes(path, obj: object):  # noqa: F811
 
 
 @ovld
+def compile_routes(path, obj: Route):  # noqa: F811
+    assert obj.path == path
+    return [obj]
+
+
+exclusions = {
+    Path(starbear.__file__).parent,
+    Path(starlette.__file__).parent,
+}
+
+
+@ovld
 def collect_locations(routes: dict):  # noqa: F811
     rval = set()
     for subroutes in routes.values():
@@ -110,7 +124,9 @@ def collect_locations(b: AbstractBear):  # noqa: F811
 def collect_locations(obj: object):  # noqa: F811
     if hasattr(obj, "__globals__"):
         loc = obj.__globals__.get("__file__", None)
-        return {Path(loc).parent} if loc else set()
+        if not loc or any(Path(loc).is_relative_to(x) for x in exclusions):
+            return set()
+        return {Path(loc).parent}
     elif hasattr(obj, "__call__"):
         return collect_locations(obj.__call__)
     else:

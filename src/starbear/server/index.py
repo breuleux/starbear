@@ -16,6 +16,7 @@ class Index(LoneBear):
         root_path = scope["root_path"]
         content = render("/", app.map, restrict=root_path)
         if content is None:
+            # TODO: Not sure when that happens and what this is supposed to do
             content = render("/", app.map, restrict="/".join(root_path.split("/")[:-1]))
         return self.template(body=content or "")
 
