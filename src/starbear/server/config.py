@@ -124,16 +124,23 @@ class StarbearServerConfig(StarbearServerBaseConfig):
     root: str = None
     # Name of the module to run
     module: Union[str, Any] = None
+    # Field in the module representing the route(s)
+    module_field: str = None
     # Explicitly given routes
     routes: dict = None
+
+    def _process_module(self):
+        if isinstance(self.module, str):
+            if ":" in self.module:
+                self.module, self.module_field = self.module.split(":")
+            self.module = importlib.import_module(self.module)
 
     def get_locations(self):
         if self.root:
             locations = [self.root]
 
         elif self.module:
-            if isinstance(self.module, str):
-                self.module = importlib.import_module(self.module)
+            self._process_module()
             locations = [Path(self.module.__file__).parent]
 
         elif self.routes:
@@ -151,9 +158,8 @@ class StarbearServerConfig(StarbearServerBaseConfig):
             return collect_routes(self.root)
 
         elif self.module:
-            if isinstance(self.module, str):
-                self.module = importlib.import_module(self.module)
-            return collect_routes_from_module(self.module)
+            self._process_module()
+            return collect_routes_from_module(self.module, self.module_field)
 
         elif self.routes:
             return self.routes

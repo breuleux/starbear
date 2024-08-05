@@ -3,9 +3,12 @@ from functools import cached_property
 from pathlib import Path
 
 from hrepr import J
+
 from ..core import Component, rewrap
 
 here = Path(__file__).parent
+
+editor_module = J(namespace=here / "editor.js")
 
 
 class Editor(Component):
@@ -64,7 +67,7 @@ class Editor(Component):
             "value": self.value,
             "language": self.language,
         }
-        return J(namespace=here / "editor.js").Editor(
+        return editor_module.Editor(
             onChange=self.event_wrap(self._on_change),
             onChangeDebounce=self.debounce,
             autofocus=self.autofocus,
@@ -77,14 +80,4 @@ class Editor(Component):
         )
 
 
-class ColorizedText(Component):
-    def __init__(self, text, language):
-        self.text = text
-        self.language = language
-
-    @cached_property
-    def node(self):
-        return J(namespace=here / "editor.js").colorized(
-            text=self.text,
-            language=self.language,
-        )
+colorized = editor_module.colorized

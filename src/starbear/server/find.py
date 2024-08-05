@@ -16,9 +16,9 @@ from ..core.app import AbstractBear
 from .index import Index
 
 
-def collect_routes_from_module(mod):
+def collect_routes_from_module(mod, module_field=None):
     def process_module(path, submod, ispkg):
-        subroutes = getattr(submod, "__app__", None)
+        subroutes = getattr(submod, module_field or "__app__", None)
         if subroutes is not None:
             routes[path] = subroutes
         elif ispkg:
