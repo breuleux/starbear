@@ -1,10 +1,7 @@
-from pathlib import Path
-
 from hrepr import J
 
+from ..common import here
 from ..core.constructors import register_constructor
-
-here = Path(__file__).parent
 
 
 @register_constructor("MonacoEditor")
@@ -25,7 +22,7 @@ def _(page, id, content=None, delta=None):
     return store[key]
 
 
-editor_module = J(namespace=here / "editor.js")
+editor_module = J(namespace=here() / "editor.js")
 
 editor = editor_module.Editor
 colorized = editor_module.colorized
