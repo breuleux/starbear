@@ -23,7 +23,7 @@ people = [
 
 
 @bear
-async def __APP__(page):
+async def __app__(page):
     q = Queue()
     for person in people:
         page.print(

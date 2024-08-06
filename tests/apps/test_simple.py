@@ -3,7 +3,7 @@ from starbear import bear
 
 
 @bear
-async def __APP__(page):
+async def __app__(page):
     page.print(H.div("hello world!", id="hello"))
 
 

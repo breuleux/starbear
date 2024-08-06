@@ -10,7 +10,7 @@ asset = asset_getter(__file__)
 
 
 @bear(strongrefs=True)
-async def __APP__(page):
+async def __app__(page):
     out = H.div("?", id="output")
     page.print(
         H.button("Set", onclick=lambda e: page[out].set(H.b("S"))),

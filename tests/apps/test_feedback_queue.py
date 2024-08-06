@@ -5,7 +5,7 @@ from starbear import FeedbackQueue, Resource as R, bear
 
 
 @bear
-async def __APP__(page):
+async def __app__(page):
     q = FeedbackQueue()
 
     def f(x):

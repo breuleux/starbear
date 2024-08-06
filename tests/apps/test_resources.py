@@ -11,7 +11,7 @@ asset = asset_getter(__file__)
     template_params={"title": "Test", "name": "Balthazar"},
     strongrefs=True,
 )
-async def __APP__(page):
+async def __app__(page):
     page.add_resources(asset("stylo.css"))
     page["#box"].print(H.p["blue"]("Adding a line to the box.", id="added"))
 

@@ -5,7 +5,7 @@ from starbear import Queue, bear
 
 
 @bear(template_params={"title": "formyform"})
-async def __APP__(page):
+async def __app__(page):
     q = Queue()
     fq = q.wrap(form=True)
     page.print(

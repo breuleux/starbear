@@ -11,7 +11,7 @@ async def exponential(x):
 
 
 @simplebear
-async def __APP__(request):
+async def __app__(request):
     x = request.query_params["x"]
     return {"square": int(x) ** 2}
 

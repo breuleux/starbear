@@ -44,7 +44,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="module")
 def app_config(request):
-    mb = request.module.__APP__
+    mb = request.module.__app__
     port = 9182
     config = uvicorn.Config(app=mb, port=port)
     server = ThreadableServer(config=config)
@@ -63,7 +63,7 @@ def app(page, app_config) -> Generator[Page, Any, Any]:
 
 @pytest.fixture(scope="module")
 def app_debug_config(request):
-    mb = request.module.__APP__
+    mb = request.module.__app__
     port = 9183
     config = uvicorn.Config(app=mb, port=port)
     server = ThreadableServer(config=config)

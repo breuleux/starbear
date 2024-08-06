@@ -2,7 +2,7 @@ from starbear import H, Queue, bear
 
 
 @bear
-async def __APP__(page):
+async def __app__(page):
     def err(_):
         raise Exception("oh no!")
 

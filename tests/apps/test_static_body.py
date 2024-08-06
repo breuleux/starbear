@@ -11,7 +11,7 @@ async def exponential(x):
 
 
 @simplebear
-async def __APP__(request):
+async def __app__(request):
     return H.div(
         H.h1("Hello!", id="content"),
         J(module=asset("counter.js"))(increment=10, cls="c1"),
