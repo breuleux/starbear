@@ -395,8 +395,8 @@ class Cub(BasicBear):
             return await super().json(request)
         except KeyError as exc:
             self.page.error(
-                message=f"Error constructing: reference {exc.args[0]} not found",
-                debug=_gc_message,
+                message=f"Error constructing: object type {exc.args[0]} unknown",
+                debug="Use @starbear.register_constructor to register it.",
             )
             raise
         except Exception as exc:

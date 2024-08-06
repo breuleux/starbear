@@ -303,3 +303,6 @@ class Page:
 
     async def recv(self):
         return await self.iq.get()
+
+    async def wait(self, timeout=None):
+        await aio.sleep(1_000_000_000 if timeout is None else timeout)

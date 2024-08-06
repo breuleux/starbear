@@ -5,6 +5,9 @@ import sheet2 from "https://cdn.jsdelivr.net/npm/vscode-codicons@0.0.17/dist/cod
 document.adoptedStyleSheets.push(sheet2);
 
 
+let currId = 0;
+
+
 editor.defineTheme(
     "nobg",
     {
@@ -18,10 +21,36 @@ editor.defineTheme(
 );
 
 
+let optionDefaults = {
+    sendDeltas: true,
+    onChangeDebounce: 0.25,
+    maxHeight: 0,
+    firstLineno: false,
+}
+
+
+let editorDefaults = {
+    lineNumbers: false,
+    minimap: {enabled: false},
+    scrollBeyondLastLine: false,
+    overviewRulerLanes: 0,
+    folding: false,
+    automaticLayout: true,
+}
+
+
 export class Editor {
     constructor(options) {
+        this.id = currId++;
+        this.communicated = false;
         this.container = document.createElement("div");
-        this.options = options;
+        this.options = {...optionDefaults, ...options};
+        this.options.editor = {
+            ...editorDefaults,
+            value: this.options.value,
+            language: this.options.language,
+            ...this.options.editor,
+        };
         if (this.options.firstLineno !== false) {
             this.options.editor.lineNumbers = i => i + this.options.firstLineno - 1
         }
@@ -30,7 +59,7 @@ export class Editor {
         this.setupEditor();
 
         if (this.options.autofocus) {
-            this.editor.focus();
+            setTimeout(() => this.editor.focus(), 0);
         }
     }
 
@@ -42,23 +71,41 @@ export class Editor {
         this.container.classList.add("grizzlaxy-editor-area");
     }
 
-    trigger(func=null, params=null) {
-        clearTimeout(this._timer);
+    hasChanged() {
+        return !this.communicated || this.changesLength === false || this.changesLength > 0;
+    }
+
+    packageContent() {
         const changes = this.changes;
         this.changes = undefined;
-        const sendContent = this.changesLength === false;
-        this.options.onChange({
+        const sendContent = !this.communicated || this.changesLength === false;
+        this.changesLength = 0;
+        return {
+            "%": "MonacoEditor",
+            id: this.id,
             content: sendContent ? this.editor.getValue() : null,
             delta: sendContent ? null : (changes || []),
-            event: "change",
-        });
+        }
+    }
+
+    trigger(func=null, params=null) {
+        clearTimeout(this._timer);
+        if (this.options.onChange && this.hasChanged()) {
+            this.options.onChange({
+                content: this.packageContent(),
+                event: "change",
+            });
+            this.communicated = true;
+        }
         if (func) {
             let sel = this.editor.getSelection();
+            params.content = this.packageContent();
             params.selection = [
                 [sel.startLineNumber, sel.startColumn],
                 [sel.endLineNumber, sel.endColumn]
             ];
             func(params);
+            this.communicated = true;
         }
     }
 

@@ -22,6 +22,7 @@ from .utils import FeedbackQueue, VirtualFile
 class RepresenterState:
     def __init__(self, route, strongrefs=False):
         self.route = route
+        self.store = {}
         if strongrefs is True:
             self.object_registry = StrongRegistry()
         elif not strongrefs:
