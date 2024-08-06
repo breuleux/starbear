@@ -8,9 +8,9 @@ authors = [
 dependencies = [
     "starlette>=0.38.1",
     "websockets>=12.0",
-    "hrepr~=0.7.0",
+    "hrepr~=0.7.2",
+    "gifnoc~=0.3.4",
     "lxml>=5.2.2",
-    "gifnoc>=0.3.4",
     "pyyaml>=6.0.1",
 ]
 readme = "README.md"

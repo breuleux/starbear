@@ -2,7 +2,7 @@ import asyncio as aio
 from pathlib import Path
 
 from hrepr import H, J, Tag
-from hrepr.textgen_simple import Breakable, Sequence
+from hrepr.textgen import Breakable, Sequence
 
 from .reg import Reference
 from .repr import StarbearHTMLGenerator
