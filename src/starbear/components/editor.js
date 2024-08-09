@@ -1,8 +1,6 @@
 import { editor, Range, KeyMod as KM, KeyCode as KC } from "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/+esm"
-import sheet2 from "https://cdn.jsdelivr.net/npm/vscode-codicons@0.0.17/dist/codicon.min.css" with { type: "css" };
 
-
-document.adoptedStyleSheets.push(sheet2);
+document.head.insertAdjacentHTML('beforeend', `<link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vscode-codicons@0.0.17/dist/codicon.min.css">`);
 
 
 let currId = 0;
