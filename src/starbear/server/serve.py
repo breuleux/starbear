@@ -1,6 +1,8 @@
 import threading
+import time
 import webbrowser
-from functools import cached_property
+from contextlib import contextmanager
+from functools import cached_property, partial
 from graphlib import TopologicalSorter
 from pathlib import Path
 from textwrap import dedent
@@ -18,13 +20,26 @@ from .find import compile_routes
 from .plugins.session import Session
 
 
-class ThreadedServer(uvicorn.Server):
+class ThreadableServer(uvicorn.Server):
     def install_signal_handlers(self):
         pass
 
-    def run(self):
-        thread = threading.Thread(target=super().run)
+    def run(self, config=None):
+        with gifnoc.use(config or None):
+            super().run()
+
+    @contextmanager
+    def run_in_thread(self, config=None):
+        # Code taken from https://stackoverflow.com/questions/61577643/python-how-to-use-fastapi-and-uvicorn-run-without-blocking-the-thread
+        thread = threading.Thread(target=partial(self.run, config))
         thread.start()
+        try:
+            while not self.started:
+                time.sleep(1e-3)
+            yield
+        finally:
+            self.should_exit = True
+            thread.join()
 
 
 class StarbearServer:
@@ -35,8 +50,14 @@ class StarbearServer:
     def reloader(self):
         return self.config.get_reloader(self)
 
+    def get_routes(self):
+        return self.config.get_routes()
+
+    def get_locations(self):
+        return self.config.get_locations()
+
     def inject_routes(self):
-        collected = self.config.get_routes()
+        collected = self.get_routes()
         routes = compile_routes("/", collected)
         self.reloader.inject_routes(routes)
 
@@ -51,7 +72,7 @@ class StarbearServer:
 
     def _setup(self):
         if self.config.watch is True:
-            watch = self.config.get_locations()
+            watch = self.get_locations()
         else:
             watch = self.config.watch
 
@@ -136,8 +157,10 @@ class StarbearServer:
 
         self.inject_routes()
 
-    def run(self):
+    @contextmanager
+    def _server(self, *, thread=False, **uvicorn_options):
         self._setup()
+        server_class = ThreadableServer if thread else uvicorn.Server
         with gifnoc.overlay(
             {
                 "starbear": {
@@ -154,9 +177,19 @@ class StarbearServer:
                 log_level="info",
                 ssl_keyfile=self.ssl_keyfile,
                 ssl_certfile=self.ssl_certfile,
+                **uvicorn_options,
             )
-            server_class = ThreadedServer if self.config.use_thread else uvicorn.Server
-            server_class(uconfig).run()
+            yield server_class(uconfig)
+
+    def run(self, **uvicorn_options):
+        with self._server(thread=False, **uvicorn_options) as server:
+            server.run()
+
+    @contextmanager
+    def run_in_thread(self, **uvicorn_options):
+        with self._server(thread=True, **uvicorn_options) as server:
+            with server.run_in_thread():
+                yield
 
 
 def run(**kwargs):

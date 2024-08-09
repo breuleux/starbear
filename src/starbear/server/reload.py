@@ -168,6 +168,14 @@ class JuriggedReloader(BaseReloader):
         return super().is_watched(pth) and not pth.endswith(".py")
 
 
+class InertJuriggedReloader(JuriggedReloader):
+    def browser_side_code(self):
+        return ""
+
+    def handle_jurigged(self, event):
+        pass
+
+
 class FullReloader(BaseReloader):
     def __init__(self, server):
         super().__init__(server)

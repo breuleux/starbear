@@ -15,7 +15,13 @@ from gifnoc import TaggedSubclass
 
 from ..common import UsageError
 from .find import collect_locations, collect_routes, collect_routes_from_module
-from .reload import BaseReloader, FullReloader, InertReloader, JuriggedReloader
+from .reload import (
+    BaseReloader,
+    FullReloader,
+    InertJuriggedReloader,
+    InertReloader,
+    JuriggedReloader,
+)
 
 
 @dataclass
@@ -58,8 +64,6 @@ class StarbearServerBaseConfig:
     dev: bool = False
     # Automatically open browser
     open_browser: bool = False
-    # Whether to use threads
-    use_thread: bool = False
     # Reloading methodology
     reload_mode: str = "jurigged"
     # SSL configuration
@@ -108,6 +112,8 @@ class StarbearServerBaseConfig:
             return BaseReloader(server)
         elif self.reload_mode == "jurigged":
             return JuriggedReloader(server)
+        elif self.reload_mode == "jurigged_noreload":
+            return InertJuriggedReloader(server)
         else:
             return FullReloader(server)
 
