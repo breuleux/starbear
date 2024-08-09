@@ -7,10 +7,11 @@ import sys
 from functools import reduce
 from pathlib import Path
 
-import starbear
 import starlette
 from ovld import ovld
 from starlette.routing import Mount, Route
+
+import starbear
 
 from ..core.app import AbstractBear
 from .index import Index

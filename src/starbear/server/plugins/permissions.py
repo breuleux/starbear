@@ -9,10 +9,10 @@ from typing import Optional
 
 from hrepr import H
 from ovld import ovld
-from starbear.common import UsageError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse
 
+from ...common import UsageError
 from ..config import StarbearServerPlugin
 
 
