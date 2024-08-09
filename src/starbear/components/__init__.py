@@ -1,6 +1,6 @@
-from .editor import colorized, editor
+from .editor import Editor, colorized
 
 __all__ = [
     "colorized",
-    "editor",
+    "Editor",
 ]

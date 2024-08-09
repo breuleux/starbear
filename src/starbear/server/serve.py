@@ -41,10 +41,10 @@ class StarbearServer:
         self.reloader.inject_routes(routes)
 
         for route in routes:
-            route._grizzlaxy_managed = True
+            route._starbear_managed = True
 
         remainder = [
-            r for r in self.app.router.routes if not getattr(r, "_grizzlaxy_managed", False)
+            r for r in self.app.router.routes if not getattr(r, "_starbear_managed", False)
         ]
         self.app.router.routes = routes + remainder
         self.app.map = collected

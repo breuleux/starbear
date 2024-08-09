@@ -24,5 +24,5 @@ def _(page, id, content=None, delta=None):
 
 editor_module = J(namespace=here() / "editor.js")
 
-editor = editor_module.Editor
+Editor = editor_module.Editor
 colorized = editor_module.colorized

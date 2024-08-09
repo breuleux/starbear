@@ -68,7 +68,7 @@ export class Editor {
     }
 
     setupElement() {
-        this.container.classList.add("grizzlaxy-editor-area");
+        this.container.classList.add("starbear-editor-area");
     }
 
     hasChanged() {
