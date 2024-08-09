@@ -146,7 +146,7 @@ class ClientWrap:
         return self.func(*args, **kwargs)
 
     def __aiter__(self):
-        return self.func
+        return aiter(self.func)
 
     def __js_embed__(self, representer):
         fn = representer.js_embed(self.func)
