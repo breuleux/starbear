@@ -1,9 +1,10 @@
 from asyncio import Future, Queue
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
 
-from hrepr import BlockGenerator, HTMLGenerator, hrepr
+from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, config_defaults
 from ovld import extend_super
 
 from .reg import (
@@ -17,6 +18,24 @@ from .reg import (
     WeakRegistry,
 )
 from .utils import FeedbackQueue, VirtualFile
+
+
+class StarbearHrepr(StdHrepr):
+    @extend_super
+    def hrepr(self, obj: object):
+        if hasattr(obj, "__live__"):
+            if hasattr(obj, "__live_element__"):
+                elem = obj.__live_element__(self.H, self)
+            else:
+                elem = self.H.div()
+            elem.ensure_id()
+            self.config.blockgen.live_generators.append((elem.id, obj.__live__))
+            return elem
+        else:
+            return super().hrepr(obj)
+
+
+shrepr = Interface(StarbearHrepr, **config_defaults)
 
 
 class RepresenterState:
@@ -40,11 +59,17 @@ class RepresenterState:
 class StarbearHTMLGenerator(HTMLGenerator):
     def __init__(self, representer_state):
         self.state = representer_state
-        self.hrepr = hrepr
-        super().__init__(block_generator_class=StarbearBlockGenerator)
+        super().__init__(block_generator_class=StarbearBlockGenerator, hrepr=shrepr)
 
 
+@dataclass
 class StarbearBlockGenerator(BlockGenerator):
+    live_generators: list = field(default_factory=list)
+
+    def __post_init__(self):
+        if self.hrepr:
+            self.hrepr = self.hrepr.variant(blockgen=self)
+
     @property
     def route(self):
         return self.global_generator.state.route

@@ -188,6 +188,8 @@ class Page:
                     "method": "beforeend",
                     "content": str(H.div(xtra, style="display:none")),
                 }
+        for elem_id, lg in blk.live_generators:
+            self._push(lg(self[f"#{elem_id}"]))
 
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:
