@@ -36,7 +36,7 @@ gifnoc==0.3.4
 h11==0.14.0
     # via httpcore
     # via uvicorn
-hrepr==0.7.2
+hrepr==0.7.3
     # via starbear
 httpcore==1.0.5
     # via httpx
