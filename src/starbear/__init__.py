@@ -7,8 +7,18 @@ from .core.app import bear, simplebear
 from .core.constructors import BrowserEvent, FormData, NamespaceDict, register_constructor
 from .core.page import Component, Page, selector_for
 from .core.reg import Reference
+from .core.repr import live
 from .core.templating import Template, template
-from .core.utils import ClientWrap, FeedbackQueue, Queue, VirtualFile, rewrap
+from .core.utils import (
+    ClientWrap,
+    Event,
+    FeedbackEvent,
+    FeedbackQueue,
+    Queue,
+    Responses,
+    VirtualFile,
+    rewrap,
+)
 from .version import version
 
 __all__ = [
@@ -29,11 +39,15 @@ __all__ = [
     "Page",
     "selector_for",
     "Reference",
+    "live",
     "Template",
     "template",
     "ClientWrap",
+    "Event",
+    "FeedbackEvent",
     "FeedbackQueue",
     "Queue",
+    "Responses",
     "VirtualFile",
     "rewrap",
     "version",

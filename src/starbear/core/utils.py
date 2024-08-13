@@ -1,6 +1,8 @@
 import asyncio
 import functools
 import traceback
+from dataclasses import dataclass, field
+from enum import Enum
 from hashlib import md5
 from mimetypes import guess_type
 
@@ -52,6 +54,29 @@ class Queue(asyncio.Queue):
 
     def __call__(self, value):
         return self.put(value)
+
+
+class Responses(Enum):
+    NO_LISTENERS = "no_listeners"
+
+
+@dataclass
+class Event:
+    __match_args__ = ("type", "value")
+
+    type: str
+    value: object
+
+
+@dataclass
+class FeedbackEvent(Event):
+    response: asyncio.Future = field(default_factory=asyncio.Future)
+
+    def resolve(self, response=None):
+        self.response.set_result(response)
+
+    def reject(self, error):
+        self.response.set_exception(error)
 
 
 def format_error(message, debug=None, exception=None, show_debug=False):

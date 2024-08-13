@@ -1,4 +1,5 @@
 import asyncio as aio
+import inspect
 from pathlib import Path
 
 from hrepr import H, J, Tag
@@ -7,7 +8,7 @@ from hrepr.textgen import Breakable, Sequence
 from ..common import logger
 from .reg import Reference
 from .repr import StarbearHTMLGenerator
-from .utils import format_error
+from .utils import Event, FeedbackEvent, Queue, Responses, format_error
 
 
 def selector_for(x):
@@ -199,8 +200,47 @@ class Page:
                     "method": "beforeend",
                     "content": str(H.div(xtra, style="display:none")),
                 }
-        for elem_id, lg in blk.live_generators:
-            self._push(lg(self[f"#{elem_id}"]), label=elem_id)
+        for elem_id, (lg, listeners) in blk.live_generators.items():
+            coro = lg(self[f"#{elem_id}"])
+            if inspect.isasyncgen(coro):
+                self._push(self._wrap_async_gen(coro, listeners), label=elem_id)
+            else:
+                self._push(coro, label=elem_id)
+
+    async def _wrap_async_gen(self, agen, listeners):
+        agen = aiter(agen)
+        send_back = None
+
+        while True:
+            try:
+                result = await agen.asend(send_back)
+                processed = False
+                keys = [True]
+                if isinstance(result, Event):
+                    keys.append(result.type)
+                for key in keys:
+                    method = listeners.get(key, None)
+                    if isinstance(method, Queue):
+                        method.put_nowait(result)
+                        processed = True
+                    elif method is None:
+                        pass
+                    else:
+                        method(result)
+                        processed = True
+                if isinstance(result, FeedbackEvent):
+                    if not processed:
+                        result.resolve(Responses.NO_LISTENERS)
+                    send_back = result.response
+                else:
+                    send_back = None
+
+            except StopAsyncIteration:
+                break
+
+            except Exception as exc:
+                self.error(f"Error in {agen}", exception=exc)
+                raise
 
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:

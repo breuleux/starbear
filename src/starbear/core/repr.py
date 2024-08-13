@@ -4,7 +4,7 @@ from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
 
-from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, config_defaults
+from hrepr import BlockGenerator, H, HTMLGenerator, Interface, StdHrepr, Tag, config_defaults
 from ovld import extend_super
 
 from .reg import (
@@ -20,17 +20,19 @@ from .reg import (
 from .utils import FeedbackQueue, VirtualFile
 
 
+def live(obj, hrepr=None, **listeners):
+    if hasattr(obj, "__live_element__"):
+        elem = obj.__live_element__(H, hrepr)
+    else:
+        elem = H.live_element()
+    return elem(runner=obj.__live__, id=True, **listeners)
+
+
 class StarbearHrepr(StdHrepr):
     @extend_super
     def hrepr(self, obj: object):
         if hasattr(obj, "__live__"):
-            if hasattr(obj, "__live_element__"):
-                elem = obj.__live_element__(self.H, self)
-            else:
-                elem = self.H.div()
-            elem.ensure_id()
-            self.config.blockgen.live_generators.append((elem.id, obj.__live__))
-            return elem
+            return live(obj, hrepr=self)
         else:
             return super().hrepr(obj)
 
@@ -64,11 +66,7 @@ class StarbearHTMLGenerator(HTMLGenerator):
 
 @dataclass
 class StarbearBlockGenerator(BlockGenerator):
-    live_generators: list = field(default_factory=list)
-
-    def __post_init__(self):
-        if self.hrepr:
-            self.hrepr = self.hrepr.variant(blockgen=self)
+    live_generators: dict = field(default_factory=dict)
 
     @property
     def route(self):
@@ -88,6 +86,26 @@ class StarbearBlockGenerator(BlockGenerator):
 
     def register_queue(self, x, **kwargs):
         return self.global_generator.state.queue_registry.register(x, **kwargs)
+
+    @extend_super
+    def node_embed(self, elem: Tag):  # noqa: F811
+        if elem.name == "live-element" and elem.attributes.get("runner"):
+            attrs = dict(elem.attributes)
+            runner = attrs["runner"]
+            attrs["runner"] = False
+            listeners = {}
+            for k, v in list(attrs.items()):
+                print(k, v)
+                if k == "on-produce":
+                    listeners[True] = v
+                    attrs[k] = False
+                elif k.startswith("on-produce-"):
+                    listeners[k[11:]] = v
+                    attrs[k] = False
+            self.live_generators[elem.id] = (runner, listeners)
+            return self.node_embed(elem.fill(attributes=attrs))
+        else:
+            return super().node_embed(elem)
 
     @extend_super
     def js_embed(self, fn: Union[MethodType, FunctionType]):  # noqa: F811
