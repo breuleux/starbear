@@ -95,7 +95,6 @@ class StarbearBlockGenerator(BlockGenerator):
             attrs["runner"] = False
             listeners = {}
             for k, v in list(attrs.items()):
-                print(k, v)
                 if k == "on-produce":
                     listeners[True] = v
                     attrs[k] = False
