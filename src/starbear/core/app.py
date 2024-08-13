@@ -438,9 +438,9 @@ class Cub(BasicBear):
                     self.iq.put_nowait(data)
                 except WebSocketDisconnect as dc:
                     if dc.code == 1000 or dc.code == 1001:
-                        return True
-                    break
-            return False
+                        self.iq.put_nowait({"type": "done", "from": "recv"})
+                    else:
+                        self.iq.put_nowait({"type": "disconnect", "from": "recv", "error": dc})
 
         async def send():
             while True:
@@ -449,9 +449,10 @@ class Cub(BasicBear):
                     await ws.send_json(obj)
                     if in_history:
                         self.history.append(obj)
-                except RuntimeError:
+                except RuntimeError as err:
                     # Put the unsent element back into the queue
                     self.oq.putleft((obj, in_history))
+                    self.iq.put_nowait({"type": "error", "from": "send", "error": err})
                     break
 
         if self.ws:
@@ -468,14 +469,33 @@ class Cub(BasicBear):
                 await ws.send_text(entry)
             self.reset = False
 
-        done, not_done = await aio.wait(
-            [aio.create_task(recv()), aio.create_task(send())],
-            return_when=aio.FIRST_COMPLETED,
-        )
-        if any(x.result() is True for x in done):
-            self.destroy()
-        else:
-            self.mother.declare_dormant(self)
+        recv_task = aio.create_task(recv())
+        send_task = aio.create_task(send())
+
+        async for event in self.iq:
+            et = event["type"]
+            if et == "start":
+                # TODO: check event["number"]
+                pass
+            elif et == "done":
+                self.destroy()
+                break
+            elif et == "error":
+                self.destroy()
+                raise event["error"]
+            elif et == "disconnect":
+                # Connection may be remade later
+                self.mother.declare_dormant(self)
+                break
+            elif et == "live-disconnected":
+                for task in self.page.tasks:
+                    if task.get_name() == event["id"]:
+                        task.cancel()
+            else:
+                logger.info(f"Unrecognized message: {event!r}")
+
+        recv_task.cancel()
+        send_task.cancel()
 
 
 def get_process_from_request(request):

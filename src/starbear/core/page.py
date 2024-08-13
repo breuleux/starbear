@@ -136,10 +136,10 @@ class Page:
                 exception=exc,
             )
 
-    def _push(self, coro):
+    def _push(self, coro, label=None):
         if aio._get_running_loop() is None:
             aio._set_running_loop(self.loop)
-        task = aio.create_task(suppress_cancel(coro))
+        task = aio.create_task(suppress_cancel(coro), name=label)
         self.tasks.add(task)
         task.add_done_callback(self._done_cb)
 
@@ -200,7 +200,7 @@ class Page:
                     "content": str(H.div(xtra, style="display:none")),
                 }
         for elem_id, lg in blk.live_generators:
-            self._push(lg(self[f"#{elem_id}"]))
+            self._push(lg(self[f"#{elem_id}"]), label=elem_id)
 
     async def put(self, element, method, history=None, send_resources=True):
         if history is None:

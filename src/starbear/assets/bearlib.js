@@ -267,6 +267,33 @@ function hookOnloads(node, sock) {
 }
 
 
+class LiveElement extends HTMLElement {
+    constructor() {
+        super();
+        this.connected = false;
+    }
+
+    connectedCallback() {
+        this.connected = true;
+    }
+
+    disconnectedCallback() {
+        this.connected = false;
+        setTimeout(
+            () => {
+                if (!this.connected) {
+                    window.$$BEAR.socket.send({type: "live-disconnected", id: this.getAttribute("id")});
+                }
+            },
+            10,
+        )
+    }
+}
+
+
+customElements.define("live-element", LiveElement);
+
+
 function incorporate(target, template, method, params) {
     let children = Array.from(template.childNodes);
 
