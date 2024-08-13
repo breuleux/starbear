@@ -4,6 +4,7 @@ from pathlib import Path
 from hrepr import H, J, Tag
 from hrepr.textgen import Breakable, Sequence
 
+from ..common import logger
 from .reg import Reference
 from .repr import StarbearHTMLGenerator
 from .utils import format_error
@@ -56,6 +57,13 @@ class AwaitableJ(J):
         self._data.page.print(J()["$$BEAR"].cb(self.thunk(), future))
 
 
+async def suppress_cancel(coro):
+    try:
+        await coro
+    except aio.CancelledError:
+        logger.info(f"Cancelled: {coro}")
+
+
 class Page:
     def __init__(
         self,
@@ -65,6 +73,7 @@ class Page:
         hgen=None,
         debug=False,
         loop=None,
+        tasks=None,
     ):
         self.instance = instance
         self.iq = instance.iq
@@ -75,7 +84,7 @@ class Page:
         self.hgen = hgen or StarbearHTMLGenerator(instance.representer)
         self.selector = selector
         self.track_history = track_history
-        self.tasks = set()
+        self.tasks = set() if tasks is None else tasks
         self.debug = debug
         self.loop = loop or aio.get_running_loop()
         self.js = AwaitableJ(page=self, object=self.selector)
@@ -100,6 +109,7 @@ class Page:
             hgen=self.hgen,
             debug=self.debug,
             loop=self.loop,
+            tasks=self.tasks,
         )
 
     def with_history(self, track_history=True):
@@ -129,12 +139,13 @@ class Page:
     def _push(self, coro):
         if aio._get_running_loop() is None:
             aio._set_running_loop(self.loop)
-        task = aio.create_task(coro)
+        task = aio.create_task(suppress_cancel(coro))
         self.tasks.add(task)
         task.add_done_callback(self._done_cb)
 
     async def sync(self):
-        for task in list(self.tasks):
+        while self.tasks:
+            task = self.tasks.pop()
             await task
 
     def _to_element(self, x):

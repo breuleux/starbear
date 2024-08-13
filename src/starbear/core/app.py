@@ -379,7 +379,11 @@ class Cub(BasicBear):
                 exception=exc,
             )
         finally:
-            self.log("info", f"Finished process ({reason})")
+            try:
+                async with aio.timeout(1):
+                    await aio.gather(*self.page.tasks)
+            finally:
+                self.log("info", f"Finished process ({reason})")
 
     def object_pairs_hook(self, pairs):
         dct = NamespaceDict(pairs)
@@ -432,8 +436,11 @@ class Cub(BasicBear):
                 try:
                     data = await ws.receive_json()
                     self.iq.put_nowait(data)
-                except WebSocketDisconnect:
+                except WebSocketDisconnect as dc:
+                    if dc.code == 1000 or dc.code == 1001:
+                        return True
                     break
+            return False
 
         async def send():
             while True:
@@ -461,11 +468,14 @@ class Cub(BasicBear):
                 await ws.send_text(entry)
             self.reset = False
 
-        await aio.wait(
+        done, not_done = await aio.wait(
             [aio.create_task(recv()), aio.create_task(send())],
             return_when=aio.FIRST_COMPLETED,
         )
-        self.mother.declare_dormant(self)
+        if any(x.result() is True for x in done):
+            self.destroy()
+        else:
+            self.mother.declare_dormant(self)
 
 
 def get_process_from_request(request):
