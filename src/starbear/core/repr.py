@@ -4,9 +4,10 @@ from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
 
-from hrepr import BlockGenerator, H, HTMLGenerator, Interface, StdHrepr, Tag, config_defaults
+from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, Tag, config_defaults
 from ovld import extend_super
 
+from .live import live
 from .reg import (
     FileRegistry,
     FutureRegistry,
@@ -18,14 +19,6 @@ from .reg import (
     WeakRegistry,
 )
 from .utils import FeedbackQueue, VirtualFile
-
-
-def live(obj, hrepr=None, **listeners):
-    if hasattr(obj, "__live_element__"):
-        elem = obj.__live_element__(H, hrepr)
-    else:
-        elem = H.live_element()
-    return elem(runner=obj.__live__, id=True, **listeners)
 
 
 class StarbearHrepr(StdHrepr):

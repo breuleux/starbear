@@ -5,9 +5,9 @@ from .common import UsageError, here
 from .config import config
 from .core.app import bear, simplebear
 from .core.constructors import BrowserEvent, FormData, NamespaceDict, register_constructor
+from .core.live import AutoRefresh, Watchable, live
 from .core.page import Component, Page, selector_for
 from .core.reg import Reference
-from .core.repr import live
 from .core.templating import Template, template
 from .core.utils import (
     ClientWrap,
@@ -40,6 +40,8 @@ __all__ = [
     "selector_for",
     "Reference",
     "live",
+    "AutoRefresh",
+    "Watchable",
     "Template",
     "template",
     "ClientWrap",
