@@ -33,9 +33,6 @@ jobs:
     strategy:
       matrix:
         settings:
-        - python: '3.9'
-          browser: 'chromium'
-          coverage: false
         - python: '3.10'
           browser: 'chromium'
           coverage: false
