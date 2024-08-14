@@ -30,7 +30,7 @@ class StarbearHrepr(StdHrepr):
             return super().hrepr(obj)
 
 
-shrepr = Interface(StarbearHrepr, **config_defaults)
+hrepr = Interface(StarbearHrepr, **config_defaults)
 
 
 class RepresenterState:
@@ -54,7 +54,7 @@ class RepresenterState:
 class StarbearHTMLGenerator(HTMLGenerator):
     def __init__(self, representer_state):
         self.state = representer_state
-        super().__init__(block_generator_class=StarbearBlockGenerator, hrepr=shrepr)
+        super().__init__(block_generator_class=StarbearBlockGenerator, hrepr=hrepr)
 
 
 @dataclass

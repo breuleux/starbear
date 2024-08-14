@@ -22,7 +22,7 @@ def _(page, id, content=None, delta=None):
     return store[key]
 
 
-editor_module = J(namespace=here() / "editor.js")
+editor_module = J(namespace=here / "editor.js")
 
 Editor = editor_module.Editor
 colorized = editor_module.colorized

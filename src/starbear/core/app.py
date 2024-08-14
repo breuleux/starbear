@@ -28,8 +28,8 @@ from .repr import RepresenterState, StarbearHTMLGenerator
 from .templating import Template, template
 from .utils import Queue, format_error, keyword_decorator
 
-templates_dir = here().parent / "templates"
-assets_dir = here().parent / "assets"
+templates_dir = here.parent / "templates"
+assets_dir = here.parent / "assets"
 
 _count = count()
 

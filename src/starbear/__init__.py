@@ -1,13 +1,14 @@
 from hrepr import H, J, returns
 from hrepr.resource import Resource
 
-from .common import UsageError, here
+from .common import UsageError, _here
 from .config import config
 from .core.app import bear, simplebear
 from .core.constructors import BrowserEvent, FormData, NamespaceDict, register_constructor
 from .core.live import AutoRefresh, Watchable, live
 from .core.page import Component, Page, selector_for
 from .core.reg import Reference
+from .core.repr import hrepr
 from .core.templating import Template, template
 from .core.utils import (
     ClientWrap,
@@ -39,6 +40,7 @@ __all__ = [
     "Page",
     "selector_for",
     "Reference",
+    "hrepr",
     "live",
     "AutoRefresh",
     "Watchable",
@@ -54,3 +56,10 @@ __all__ = [
     "rewrap",
     "version",
 ]
+
+
+def __getattr__(attr):
+    if attr == "here":
+        return _here(2)
+
+    raise AttributeError(attr)

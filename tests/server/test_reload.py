@@ -2,14 +2,14 @@ import time
 from contextlib import contextmanager
 
 import pytest
-from starbear.common import here
+from starbear import here
 
 from .utils import serve
 
 
 @pytest.fixture
 def venus_mod(page, clone):
-    tmp = clone(here() / "app_hello")
+    tmp = clone(here / "app_hello")
 
     @contextmanager
     def load(*args, regoto=False):

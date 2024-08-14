@@ -4,7 +4,7 @@ import traceback
 from pathlib import Path
 
 
-def here(depth=1):
+def _here(depth):
     fr = sys._getframe(depth)
     filename = fr.f_code.co_filename
     return Path(filename).parent
@@ -42,3 +42,10 @@ class StarbearHandler(logging.StreamHandler):
 logger = logging.getLogger("starbear")
 logger.setLevel(level=logging.INFO)
 logger.addHandler(StarbearHandler(sys.stderr))
+
+
+def __getattr__(attr):
+    if attr == "here":
+        return _here(2)
+
+    raise AttributeError(attr)
