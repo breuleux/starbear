@@ -22,9 +22,12 @@ class AutoRefresh:
 
     async def __live__(self, element):
         while True:
-            value = self.func() if callable(self.func) else self.func
-            if value is not None:
-                element.set(value)
+            try:
+                value = self.func() if callable(self.func) else self.func
+                if value is not None:
+                    element.set(value)
+            except Exception as exc:
+                element.set(exc)
             await asyncio.sleep(self.refresh_rate)
 
 

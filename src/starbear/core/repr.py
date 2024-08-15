@@ -1,5 +1,5 @@
 from asyncio import Future, Queue
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields as dataclass_fields, is_dataclass
 from pathlib import Path
 from types import FunctionType, MethodType
 from typing import Union
@@ -26,8 +26,17 @@ class StarbearHrepr(StdHrepr):
     def hrepr(self, obj: object):
         if hasattr(obj, "__live__"):
             return live(obj, hrepr=self)
+        elif hasattr(obj, "__hrepr__"):
+            return obj.__hrepr__(self.H, self)
+        elif is_dataclass(type(obj)):
+            return self.make.instance(
+                title=type(obj).__name__,
+                fields=[[field.name, getattr(obj, field.name)] for field in dataclass_fields(obj)],
+                delimiter="=",
+                type=type(obj),
+            )
         else:
-            return super().hrepr(obj)
+            return NotImplemented
 
 
 hrepr = Interface(StarbearHrepr, **config_defaults)
