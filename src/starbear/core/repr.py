@@ -1,13 +1,13 @@
 from asyncio import Future, Queue
 from dataclasses import dataclass, field, fields as dataclass_fields, is_dataclass
 from pathlib import Path
-from types import FunctionType, MethodType
+from types import AsyncGeneratorType, FunctionType, MethodType
 from typing import Union
 
 from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, Tag, config_defaults
 from ovld import extend_super
 
-from .live import live
+from ..stream.live import Inplace, live
 from .reg import (
     FileRegistry,
     FutureRegistry,
@@ -37,6 +37,9 @@ class StarbearHrepr(StdHrepr):
             )
         else:
             return NotImplemented
+
+    def hrepr(self, obj: AsyncGeneratorType):
+        return live(Inplace(obj), hrepr=self)
 
 
 hrepr = Interface(StarbearHrepr, **config_defaults)

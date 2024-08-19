@@ -5,7 +5,6 @@ from .common import UsageError, _here
 from .config import config
 from .core.app import bear, simplebear
 from .core.constructors import BrowserEvent, FormData, NamespaceDict, register_constructor
-from .core.live import AutoRefresh, Watchable, live
 from .core.page import Component, Page, selector_for
 from .core.reg import Reference
 from .core.repr import hrepr
@@ -20,6 +19,7 @@ from .core.utils import (
     VirtualFile,
     rewrap,
 )
+from .stream.live import GeneratorPrinter, Inplace, Print, Watchable, live
 from .version import version
 
 __all__ = [
@@ -42,7 +42,9 @@ __all__ = [
     "Reference",
     "hrepr",
     "live",
-    "AutoRefresh",
+    "Inplace",
+    "GeneratorPrinter",
+    "Print",
     "Watchable",
     "Template",
     "template",
