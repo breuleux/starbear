@@ -1,5 +1,6 @@
 import pytest
 from hrepr import H
+
 from starbear import bear
 from starbear.components.editor import Editor, colorized
 

@@ -1,7 +1,8 @@
-from starbear import H, bear
-from starbear.server.misc import simple_route
 from starlette.responses import HTMLResponse
 from starlette.routing import Route
+
+from starbear import H, bear
+from starbear.server.misc import simple_route
 
 
 @bear

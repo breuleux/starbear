@@ -88,6 +88,7 @@ def compile_routes(path, mb: AbstractBear):  # noqa: F811
 
 @ovld
 def compile_routes(path, obj: object):  # noqa: F811
+    # TODO: better error when someone forgets @bear
     if callable(obj):
         cls = getattr(obj, "route_class", Route)
         route_parameters = getattr(obj, "route_parameters", {})

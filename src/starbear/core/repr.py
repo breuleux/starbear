@@ -4,8 +4,9 @@ from pathlib import Path
 from types import AsyncGeneratorType, FunctionType, MethodType
 from typing import Union
 
-from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, Tag, config_defaults
-from ovld import extend_super
+from hrepr import BlockGenerator, HTMLGenerator, Interface, StdHrepr, config_defaults
+from hrepr.hgen import HasNodeName
+from ovld import call_next, extend_super
 
 from ..stream.live import Inplace, live
 from .reg import (
@@ -38,7 +39,7 @@ class StarbearHrepr(StdHrepr):
         else:
             return NotImplemented
 
-    def hrepr(self, obj: AsyncGeneratorType):
+    def hrepr(self, obj: AsyncGeneratorType):  # noqa: F811
         return live(Inplace(obj), hrepr=self)
 
 
@@ -93,23 +94,20 @@ class StarbearBlockGenerator(BlockGenerator):
         return self.global_generator.state.queue_registry.register(x, **kwargs)
 
     @extend_super
-    def node_embed(self, elem: Tag):  # noqa: F811
-        if elem.name == "live-element" and elem.attributes.get("runner"):
-            attrs = dict(elem.attributes)
-            runner = attrs["runner"]
-            attrs["runner"] = False
-            listeners = {}
-            for k, v in list(attrs.items()):
-                if k == "on-produce":
-                    listeners[True] = v
-                    attrs[k] = False
-                elif k.startswith("on-produce-"):
-                    listeners[k[11:]] = v
-                    attrs[k] = False
-            self.live_generators[elem.id] = (runner, listeners)
-            return self.node_embed(elem.fill(attributes=attrs))
-        else:
-            return super().node_embed(elem)
+    def node_embed(self, elem: HasNodeName["live-element"]):  # noqa: F811, F821
+        attrs = dict(elem.attributes)
+        runner = attrs["runner"]
+        attrs["runner"] = False
+        listeners = {}
+        for k, v in list(attrs.items()):
+            if k == "on-produce":
+                listeners[True] = v
+                attrs[k] = False
+            elif k.startswith("on-produce-"):
+                listeners[k[11:]] = v
+                attrs[k] = False
+        self.live_generators[elem.id] = (runner, listeners)
+        return call_next(elem.fill(attributes=attrs))
 
     @extend_super
     def js_embed(self, fn: Union[MethodType, FunctionType]):  # noqa: F811

@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass
 
 from hrepr import H
+
 from starbear.core.app import bear
 from starbear.core.utils import FeedbackEvent, Queue, Responses
 from starbear.stream.live import live

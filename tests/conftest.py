@@ -3,6 +3,7 @@ from typing import Any, Generator
 import pytest
 import uvicorn
 from playwright.sync_api import Page
+
 from starbear.server.serve import ThreadableServer
 
 

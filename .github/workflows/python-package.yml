@@ -15,16 +15,16 @@ jobs:
     steps:
     - name: Check out the code
       uses: actions/checkout@v3
-    - name: Install rye
-      uses: eifinger/setup-rye@v4
+    - name: Set up uv
+      uses: hynek/setup-cached-uv@v2
+      with:
+        cache-dependency-path: uv.lock
     - name: Pin Python version
-      run: rye pin ${{ matrix.python-version }}
-    - name: Sync dependencies
-      run: rye sync
+      run: uv python pin ${{ matrix.python-version }}
     - name: Lint check
-      run: rye check
+      run: uvx ruff check
     - name: Check formatting
-      run: rye format --check
+      run: uvx ruff format --check
 
   test:
     runs-on: ubuntu-latest
@@ -51,20 +51,22 @@ jobs:
     steps:
     - name: Check out the code
       uses: actions/checkout@v3
-    - name: Install rye
-      uses: eifinger/setup-rye@v4
+    - name: Set up uv
+      uses: hynek/setup-cached-uv@v2
+      with:
+        cache-dependency-path: uv.lock
     - name: Pin Python version
-      run: rye pin ${{ matrix.settings.python }}
+      run: uv python pin ${{ matrix.settings.python }}
     - name: Sync dependencies
-      run: rye sync
+      run: uv sync --all-extras
     - name: Install browser
-      run: rye run playwright install ${{ matrix.settings.browser }}
+      run: uv run playwright install ${{ matrix.settings.browser }}
     - name: Test with pytest
       if: ${{ !matrix.settings.coverage }}
-      run: env HOME=/root rye run pytest --browser ${{ matrix.settings.browser }} --reload-pause 3
+      run: env HOME=/root uv run pytest --browser ${{ matrix.settings.browser }} --reload-pause 3
     - name: Test with pytest and coverage
       if: ${{ matrix.settings.coverage }}
-      run: env HOME=/root rye run pytest --cov=src --cov-report term-missing --browser ${{ matrix.settings.browser }} --reload-pause 3
+      run: env HOME=/root uv run pytest --cov=src --cov-report term-missing --browser ${{ matrix.settings.browser }} --reload-pause 3
     - name: Verify coverage
       if: ${{ matrix.settings.coverage }}
-      run: rye run coverage report | tail -1 | egrep "TOTAL +[0-9]+ +0 +100%"
+      run: uv run coverage report | tail -1 | egrep "TOTAL +[0-9]+ +0 +100%"

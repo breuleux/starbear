@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+
 from starbear.server.find import (
     collect_locations,
     collect_routes,
