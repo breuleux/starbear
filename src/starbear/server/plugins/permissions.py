@@ -69,6 +69,7 @@ class Permissions(StarbearServerPlugin):
         else:
             raise UsageError("The permissions plugin should specify a file and/or defaults.")
 
+        self.permissions = permissions
         server.app.add_middleware(PermissionsMiddleware, is_authorized=permissions)
 
 

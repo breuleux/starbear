@@ -359,3 +359,7 @@ class Page:
 
     async def wait(self, timeout=None):
         await aio.sleep(1_000_000_000 if timeout is None else timeout)
+
+    @property
+    def server_instance(self):
+        return self.instance.mother.app.starbear_instance
