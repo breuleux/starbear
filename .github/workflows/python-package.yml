@@ -42,10 +42,13 @@ jobs:
         - python: '3.12'
           browser: 'chromium'
           coverage: false
-        - python: '3.12'
+        - python: '3.13'
+          browser: 'chromium'
+          coverage: false
+        - python: '3.13'
           browser: 'firefox'
           coverage: false
-        - python: '3.12'
+        - python: '3.13'
           browser: 'webkit'
           coverage: false
     steps:
