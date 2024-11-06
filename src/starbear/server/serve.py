@@ -67,7 +67,7 @@ class StarbearServer:
         remainder = [
             r for r in self.app.router.routes if not getattr(r, "_starbear_managed", False)
         ]
-        self.app.router.routes = routes + remainder
+        self.app.router.routes = remainder + routes
         self.app.map = collected
 
     def _setup(self):
