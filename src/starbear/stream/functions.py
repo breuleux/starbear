@@ -24,7 +24,7 @@ class MergeStream:
 
     def add(self, fut):
         self.active += 1
-        if inspect.isasyncgen(fut):
+        if inspect.isasyncgen(fut) or hasattr(fut, "__aiter__"):
             it = aiter(fut)
             coro = self._add(anext(it), it)
         else:
