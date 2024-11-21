@@ -3,7 +3,6 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from fnmatch import fnmatch
-from functools import reduce
 from pathlib import Path
 from typing import Optional
 
@@ -21,9 +20,6 @@ class PermissionsMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.router = app
         self.is_authorized = is_authorized
-
-    def is_authorized(self, user, path):
-        return user["email"] == "breuleux@gmail.com"
 
     async def dispatch(self, request, call_next):
         if (path := request.url.path).startswith("/_/"):
@@ -71,42 +67,6 @@ class Permissions(StarbearServerPlugin):
 
         self.permissions = permissions
         server.app.add_middleware(PermissionsMiddleware, is_authorized=permissions)
-
-
-@ovld
-def merge(d1: dict, d2):  # noqa: F811
-    rval = type(d1)()
-    for k, v in d1.items():
-        if k in d2:
-            v2 = d2[k]
-            rval[k] = merge(v, v2)
-        else:
-            rval[k] = v
-    for k, v in d2.items():
-        if k not in d1:
-            rval[k] = v
-    return rval
-
-
-@ovld
-def merge(l1: list, l2: list):  # noqa: F811
-    return l2
-
-
-@ovld
-def merge(l1: list, d: dict):  # noqa: F811
-    if "append" in d:
-        return l1 + d["append"]
-    else:
-        raise TypeError("Cannot merge list and dict unless dict has 'append' key")
-
-
-@ovld
-def merge(a: object, b):  # noqa: F811
-    if hasattr(a, "__merge__"):
-        return a.__merge__(b)
-    else:
-        return b
 
 
 class ConfigFile:
@@ -211,27 +171,6 @@ def make_config(config_file, defaults=None):
 
 def parse_config():
     return make_config().dict
-
-
-def read_config(config_file):
-    config_file = Path(config_file)
-    suffix = config_file.suffix
-    if suffix == ".json":
-        with open(config_file) as f:
-            cfg = json.load(f)
-    elif suffix in (".yml", ".yaml"):
-        import yaml
-
-        with open(config_file) as f:
-            cfg = yaml.safe_load(f)
-    else:
-        raise UsageError(f"Unknown config file extension: {suffix}")
-    return absolutize_paths(cfg, config_file.parent.absolute())
-
-
-def read_configs(*sources):
-    results = [read_config(source) for source in sources]
-    return reduce(merge, results, {})
 
 
 class PermissionDict:
