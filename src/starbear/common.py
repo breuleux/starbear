@@ -15,9 +15,19 @@ class UsageError(Exception):
 
 
 class StarbearHandler(logging.StreamHandler):
+    def __init__(self, channel, use_color=None):
+        super().__init__(channel)
+        self.use_color = sys.stdout.isatty() if use_color is None else use_color
+
+    def colorize(self, color, text):
+        if self.use_color:
+            return f"\033[{color}m{text}\033[0m"
+        else:
+            return text
+
     def format(self, record):
         def _brack(s):
-            return f"[\033[36m{s}\033[0m]" if s else ""
+            return f"[{self.colorize(36, s)}]" if s else ""
 
         process = getattr(record, "proc", None)
         user = getattr(record, "user", None)
@@ -28,7 +38,7 @@ class StarbearHandler(logging.StreamHandler):
             "ERROR": "31",
         }
         color = colors.get(record.levelname, "95")
-        prefix = f"\033[{color}m{record.levelname}\033[0m:   {_brack(record.name)}{_brack(process)}{_brack(user)}"
+        prefix = f"{self.colorize(color, record.levelname)}:   {_brack(record.name)}{_brack(process)}{_brack(user)}"
         msg = record.msg
         if tb:
             msg += "\n" + traceback.format_exc()
