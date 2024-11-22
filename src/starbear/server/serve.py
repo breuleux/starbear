@@ -101,7 +101,7 @@ class StarbearServer:
             protocol = "https" if self.config.ssl.enabled else "http"
             host, port = self.config.socket.getsockname()
             url = f"{protocol}://{host}:{port}"
-            logger.info(f"Serving at: \x1b[1m{url}\x1b[0m")
+            logger.info(f"Serving at: {url}")
             if self.config.open_browser:
                 webbrowser.open(url)
 
