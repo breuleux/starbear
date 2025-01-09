@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 from hrepr import H
-from ovld import ovld
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import HTMLResponse
 
@@ -132,31 +131,6 @@ extensions_map = {
     ".yaml": YAMLFile,
     ".yml": YAMLFile,
 }
-
-
-@ovld
-def absolutize_paths(d: dict, dir: Path):  # noqa: F811
-    return {k: absolutize_paths(v, dir) for k, v in d.items()}
-
-
-@ovld
-def absolutize_paths(li: list, dir: Path):  # noqa: F811
-    return [absolutize_paths(v, dir) for v in li]
-
-
-@ovld
-def absolutize_paths(s: str, dir: Path):  # noqa: F811
-    if s.startswith("./") and s != "./":
-        return str(dir / s)
-    elif s.startswith("../") and s != "../":
-        return str(dir / s)
-    else:
-        return s
-
-
-@ovld
-def absolutize_paths(obj: object, dir: Path):  # noqa: F811
-    return obj
 
 
 def make_config(config_file, defaults=None):

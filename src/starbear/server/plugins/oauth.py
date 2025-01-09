@@ -21,6 +21,9 @@ class OAuthMiddleware(BaseHTTPMiddleware):
         self.oauth = oauth
 
     async def dispatch(self, request, call_next):
+        if "X-API-KEY" in request.headers:
+            return await call_next(request)
+
         if request.url.path.startswith("/_/"):
             return await call_next(request)
 
