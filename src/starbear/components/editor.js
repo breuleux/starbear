@@ -22,6 +22,7 @@ editor.defineTheme(
 let optionDefaults = {
     sendDeltas: true,
     onChangeDebounce: 0.25,
+    height: "100%",
     maxHeight: 0,
     firstLineno: false,
 }
@@ -67,6 +68,12 @@ export class Editor {
 
     setupElement() {
         this.container.classList.add("starbear-editor-area");
+        if (this.options.maxHeight) {
+            this.container.style.maxHeight = this.options.maxHeight;
+        }
+        if (this.options.height !== "content") {
+            this.container.style.height = this.options.height;
+        }
     }
 
     hasChanged() {
@@ -136,10 +143,7 @@ export class Editor {
     }
 
     event_updateHeight() {
-        const contentHeight = Math.min(
-            this.options.maxHeight || 500,
-            this.editor.getContentHeight()
-        );
+        const contentHeight = this.editor.getContentHeight();
         this.container.style.height = `${contentHeight}px`;
         // Normally the relayout should be automatic, but doing it here
         // avoids some flickering
@@ -220,8 +224,10 @@ export class Editor {
             )
         }
 
-        this.editor.onDidContentSizeChange(this.event_updateHeight.bind(this));
-        this.event_updateHeight();
+        if (this.options.height === "content") {
+            this.editor.onDidContentSizeChange(this.event_updateHeight.bind(this));
+            this.event_updateHeight();
+        }
     }
 
     focus() {
