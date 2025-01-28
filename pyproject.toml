@@ -1,6 +1,6 @@
 [project]
 name = "starbear"
-version = "0.2.7"
+version = "0.2.8"
 description = "Framework for easy small local web apps or programs"
 authors = [
     { name = "Olivier Breuleux", email = "breuleux@gmail.com" }
