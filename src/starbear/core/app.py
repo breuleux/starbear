@@ -576,18 +576,19 @@ class MotherBear(AbstractBear):
         self.ensure_router(request)
         process = get_process_from_request(request)
         main_path = self.path_for("main", process=process)
+        query = {**request.query_params, **request.path_params}
         if self.hide_processes:
             try:
                 session = request.session
             except AssertionError:
                 session = {}
             return await self._get(
-                process, query_params=request.query_params, session=session, ensure=True
+                process, query_params=query, session=session, ensure=True
             ).route_main(request)
         else:
             url = main_path
-            if request.query_params:
-                url = f"{url}?{request.query_params}"
+            if query:
+                url = f"{url}?{query}"
             return RedirectResponse(url=url)
 
     ####################
