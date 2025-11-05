@@ -29,13 +29,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.45.1-jammy
+      image: mcr.microsoft.com/playwright:v1.52.0-jammy
     strategy:
       matrix:
         settings:
-        - python: '3.10'
-          browser: 'chromium'
-          coverage: false
         - python: '3.11'
           browser: 'chromium'
           coverage: false
@@ -50,6 +47,9 @@ jobs:
           coverage: false
         - python: '3.13'
           browser: 'webkit'
+          coverage: false
+        - python: '3.14'
+          browser: 'chromium'
           coverage: false
     steps:
     - name: Check out the code
