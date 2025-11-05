@@ -43,7 +43,7 @@ def test_subdirectory(app_hello, page):
 
 def test_root_argument(page):
     page.set_default_timeout(500)
-    with serve("--root", here / "app_hello" / "world" / "venus.py") as addr:
+    with serve(here / "app_hello" / "world" / "venus.py") as addr:
         page.goto(addr)
         assert page.locator("h1").inner_text() == "VENUS!"
 

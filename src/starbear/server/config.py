@@ -8,10 +8,11 @@ import socket
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Union
+from types import ModuleType
 
 import gifnoc
-from gifnoc import TaggedSubclass
+from serieux import TaggedSubclass
+from serieux.model import Model, model
 
 from ..common import UsageError
 from .find import collect_locations, collect_routes, collect_routes_from_module
@@ -22,6 +23,24 @@ from .reload import (
     InertReloader,
     JuriggedReloader,
 )
+
+
+def _module_from_string(mod):
+    field = None
+    if ":" in mod:
+        mod, field = mod.split(":", 1)
+    mod = importlib.import_module(mod)
+    if field is not None:
+        mod = getattr(mod, field)
+    return mod
+
+
+@model.register
+def _module_model(t: type[ModuleType]):
+    return Model(
+        original_type=ModuleType,
+        from_string=_module_from_string,
+    )
 
 
 @dataclass
@@ -56,18 +75,25 @@ class StarbearServerPlugin:
 class StarbearServerBaseConfig:
     # Port to serve from
     port: int = 8000
+
     # Hostname to serve from
     host: str = "127.0.0.1"
+
     # Path to watch for changes with jurigged
-    watch: Union[str, bool] = None
+    watch: str = None
+
     # Run in development mode
     dev: bool = False
+
     # Automatically open browser
     open_browser: bool = False
+
     # Reloading methodology
     reload_mode: str = "jurigged"
+
     # SSL configuration
     ssl: StarbearSSLConfig = field(default_factory=StarbearSSLConfig)
+
     # Plugins
     plugins: dict[str, TaggedSubclass[StarbearServerPlugin]] = field(default_factory=dict)
 
@@ -127,26 +153,22 @@ class StarbearServerBaseConfig:
 @dataclass
 class StarbearServerConfig(StarbearServerBaseConfig):
     # Directory or script
-    root: str = None
-    # Name of the module to run
-    module: Union[str, Any] = None
-    # Field in the module representing the route(s)
+    root: Path = None
+
+    # Reference to the module to run
+    module: ModuleType = None
+
+    # Field to get the apps from
     module_field: str = None
+
     # Explicitly given routes
     routes: dict = None
-
-    def _process_module(self):
-        if isinstance(self.module, str):
-            if ":" in self.module:
-                self.module, self.module_field = self.module.split(":")
-            self.module = importlib.import_module(self.module)
 
     def get_locations(self):
         if self.root:
             locations = [self.root]
 
         elif self.module:
-            self._process_module()
             locations = [Path(self.module.__file__).parent]
 
         elif self.routes:
@@ -164,7 +186,6 @@ class StarbearServerConfig(StarbearServerBaseConfig):
             return collect_routes(self.root)
 
         elif self.module:
-            self._process_module()
             return collect_routes_from_module(self.module, self.module_field)
 
         elif self.routes:

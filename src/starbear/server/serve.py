@@ -25,7 +25,7 @@ class ThreadableServer(uvicorn.Server):
         pass
 
     def run(self, config=None):
-        with gifnoc.use(config or None):
+        with gifnoc.use(config or {}):
             super().run()
 
     @contextmanager

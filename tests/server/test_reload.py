@@ -15,7 +15,7 @@ def venus_mod(page, clone):
     @contextmanager
     def load(*args, regoto=False):
         page.set_default_timeout(2500)
-        with serve("--root", tmp, *args) as addr:
+        with serve(tmp, *args) as addr:
             page.goto(f"{addr}/world/venus")
             h1 = page.locator("h1")
             assert h1.inner_text() == "VENUS!"
